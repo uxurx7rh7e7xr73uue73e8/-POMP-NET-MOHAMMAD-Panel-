@@ -45,9 +45,9 @@ import { formatBytes, formatDate, relativeTime, cn } from "@/lib/utils";
 import type { SubData, SubLink } from "@/lib/types";
 
 const protocolColor: Record<string, string> = {
-  vless: "#a3e635",
-  vmess: "#7dd3fc",
-  trojan: "#f0abfc",
+  vless: "#8b35ff",
+  vmess: "#168cff",
+  trojan: "#b18cff",
 };
 
 function useSubData(token: string | undefined) {
@@ -239,8 +239,8 @@ export default function SubscriptionPage() {
                     <AreaChart data={chart} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                       <defs>
                         <linearGradient id="usageFill" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#a3e635" stopOpacity={0.8} />
-                          <stop offset="100%" stopColor="#a3e635" stopOpacity={0.05} />
+                          <stop offset="0%" stopColor="#8b35ff" stopOpacity={0.8} />
+                          <stop offset="100%" stopColor="#8b35ff" stopOpacity={0.05} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="ts" hide />
@@ -317,7 +317,7 @@ export default function SubscriptionPage() {
                 <CardContent className="flex items-center gap-2.5 p-3 sm:gap-3 sm:p-4">
                   <div
                     className="grid h-10 w-10 shrink-0 place-items-center rounded-base border-2 border-border font-heading text-black uppercase sm:h-11 sm:w-11"
-                    style={{ background: protocolColor[link.protocol] || "#a3e635" }}
+                    style={{ background: protocolColor[link.protocol] || "#8b35ff" }}
                   >
                     {link.protocol.slice(0, 2)}
                   </div>
