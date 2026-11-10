@@ -72,6 +72,12 @@ export default function BotPage() {
           </div>
           <CardDescription>
             {t("botConfigDesc")}
+            <span className="mt-2 block leading-6 text-violet-200/80">
+              ربات برای همه کاربران تلگرام فعال است: هر شخص با دستور /new کانفیگ شخصی خودش را می‌سازد؛ با /config کانفیگ را دوباره می‌گیرد و با /status حجم و اعتبار را می‌بیند. هر شناسه تلگرام فقط به حساب خودش دسترسی دارد. تنظیمات پیش‌فرض حساب جدید: ۲۰ گیگابایت، ۳۰ روز و حداکثر ۲ دستگاه.
+            </span>
+            <span className="mt-1 block text-text/50">
+              برای فعال شدن، ربات را روشن و توکن BotFather را ذخیره کنید؛ دامنه عمومی پنل نیز باید در متغیر PUBLIC_DOMAIN یا RAILWAY_PUBLIC_DOMAIN تنظیم شده باشد. شناسه‌های پایین فقط برای اعلان‌ها و بکاپ مدیر هستند، نه محدود کردن کاربران ربات.
+            </span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
