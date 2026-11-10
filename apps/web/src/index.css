@@ -4,6 +4,8 @@
 
 :root {
   --main: #8b35ff;
+  --accent-blue: #168cff;
+  --accent-purple: #8b35ff;
   --overlay: rgba(0, 0, 0, 0.8);
   --bg: #070610;
   --bw: #111020;
@@ -20,6 +22,8 @@
 
 .dark {
   --main: #8b35ff;
+  --accent-blue: #168cff;
+  --accent-purple: #8b35ff;
   --overlay: rgba(0, 0, 0, 0.85);
   --bg: #070610;
   --bw: #111020;
@@ -43,7 +47,8 @@ body,
 }
 
 body {
-  background-color: var(--bg);\n  font-family: "Vazirmatn", Inter, sans-serif;
+  background-color: var(--bg);
+  font-family: "Vazirmatn", Inter, sans-serif;
   color: var(--text);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
