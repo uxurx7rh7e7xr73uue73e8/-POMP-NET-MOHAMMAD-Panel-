@@ -27,6 +27,7 @@ import { Star, Tag, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RailLogo } from "@/components/rail-logo";
 import { AnimatedBackground } from "@/components/animated-background";
+import { BrandSignature } from "@/components/brand-signature";
 
 const GITHUB_URL = "https://github.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-";
 
@@ -314,6 +315,7 @@ export function AppLayout() {
 
           <main className="flex-1 p-4 lg:p-8">
             <div className="mx-auto max-w-7xl animate-fade-in">
+              <BrandSignature compact />
               <Outlet />
             </div>
           </main>
