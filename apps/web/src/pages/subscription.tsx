@@ -156,7 +156,7 @@ export default function SubscriptionPage() {
               <RailLogo className="h-7 w-7" />
             </div>
             <div className="min-w-0">
-              <div className="font-heading text-2xl leading-tight">SideRail</div>
+              <div className="font-heading text-xl leading-tight sm:text-2xl">POMP NET MOHAMMAD</div>\n              <div className="text-[10px] font-heading uppercase tracking-[.22em] text-main">QUANTUM NEXUS · SECURE SUBSCRIPTION</div>
               <div className="truncate text-sm font-base text-text/60">{user.email}</div>
             </div>
           </div>
@@ -209,25 +209,25 @@ export default function SubscriptionPage() {
                 icon={Download}
                 label={t("download")}
                 value={formatBytes(user.down)}
-                accent="#a3e635"
+                accent="#8b35ff"
               />
               <MiniStat
                 icon={Upload}
                 label={t("upload")}
                 value={formatBytes(user.up)}
-                accent="#7dd3fc"
+                accent="#168cff"
               />
               <MiniStat
                 icon={CalendarClock}
                 label={t("expires")}
                 value={user.expireAt ? relativeTime(user.expireAt) : t("never")}
-                accent="#fda4af"
+                accent="#8b35ff"
               />
               <MiniStat
                 icon={Gauge}
                 label={t("configs")}
                 value={String(links.length)}
-                accent="#f0abfc"
+                accent="#168cff"
               />
             </div>
 
