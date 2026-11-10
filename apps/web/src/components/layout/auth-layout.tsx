@@ -83,7 +83,7 @@ export function AuthShell({
             </div>
 
             <div className="relative text-xs font-heading uppercase tracking-widest text-mtext/50">
-              © {new Date().getFullYear()} POMP NET MOHAMMAD
+              POMP NET MOHAMMAD · QUANTUM NEXUS
             </div>
           </div>
 
