@@ -1,4 +1,3 @@
-import * as React from "react";
 import { Heart, ShieldCheck } from "lucide-react";
 
 export function BrandSignature({ compact = false }: { compact?: boolean }) {
