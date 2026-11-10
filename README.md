@@ -1,4 +1,8 @@
-POMP NET MOHAMMAD — QUANTUM NEXUS\n\nBEYOND CONNECTION. BEYOND LIMITS.\n\nطراحی و توسعه: تیم پمپ نت محمد 
+POMP NET MOHAMMAD — QUANTUM NEXUS
+
+BEYOND CONNECTION. BEYOND LIMITS.
+
+طراحی و توسعه: تیم پمپ نت محمد 
 
 <div align="center">
 
