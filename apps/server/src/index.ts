@@ -39,7 +39,7 @@ seedDefaultRouting();
 const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
-  res.setHeader("X-Powered-By", "POMP NET MOHAMMAD — QUANTUM NEXUS");
+  res.setHeader("X-Powered-By", "POMP-NET-MOHAMMAD-QUANTUM-NEXUS");
   res.setHeader("X-SideRail-Author", "icubaby");
   res.setHeader("X-SideRail-Repo", "https://github.com/icubaby/SideRail");
   next();
