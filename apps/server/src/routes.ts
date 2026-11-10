@@ -513,7 +513,13 @@ api.delete("/routing/:id", requirePermission("routing"), async (req: AuthedReque
 
 api.get("/bot", requirePermission("bot"), (_req, res) => {
   const cfg = getBotConfig();
-  res.json({ enabled: cfg.enabled, token: cfg.token, chatIds: cfg.chatIds, dailyBackup: cfg.dailyBackup });
+  res.json({
+    enabled: cfg.enabled,
+    tokenConfigured: Boolean(cfg.token),
+    tokenHint: cfg.token ? `••••••${cfg.token.slice(-4)}` : "",
+    chatIds: cfg.chatIds,
+    dailyBackup: cfg.dailyBackup,
+  });
 });
 
 api.put("/bot", requirePermission("bot"), (req: AuthedRequest, res) => {
@@ -536,13 +542,19 @@ api.put("/bot", requirePermission("bot"), (req: AuthedRequest, res) => {
 
 api.post("/bot/test", requirePermission("bot"), async (req: AuthedRequest, res) => {
   const body = z
-    .object({ token: z.string().min(1), chatIds: z.array(z.string()).min(1) })
+    .object({ token: z.string().optional(), chatIds: z.array(z.string()).min(1) })
     .safeParse(req.body);
   if (!body.success) {
     res.status(400).json({ error: "token and at least one chat id are required" });
     return;
   }
-  const result = await testBot(body.data.token, body.data.chatIds);
+  const savedToken = getBotConfig().token;
+  const token = body.data.token?.trim() || savedToken;
+  if (!token) {
+    res.status(400).json({ error: "Configure a Telegram bot token first" });
+    return;
+  }
+  const result = await testBot(token, body.data.chatIds);
   if (!result.ok) {
     res.status(400).json({ error: result.error });
     return;

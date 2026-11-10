@@ -145,7 +145,7 @@ export const api = {
     request(`/api/routing/${id}`, { method: "PUT", body: JSON.stringify({ inboundIds }) }),
   deleteRouting: (id: number) => request(`/api/routing/${id}`, { method: "DELETE" }),
   getBot: () => request<import("./types").BotConfig>("/api/bot"),
-  saveBot: (payload: Partial<import("./types").BotConfig>) =>
+  saveBot: (payload: { enabled?: boolean; token?: string; chatIds?: string[]; dailyBackup?: boolean }) =>
     request("/api/bot", { method: "PUT", body: JSON.stringify(payload) }),
   testBot: (token: string, chatIds: string[]) =>
     request("/api/bot/test", { method: "POST", body: JSON.stringify({ token, chatIds }) }),

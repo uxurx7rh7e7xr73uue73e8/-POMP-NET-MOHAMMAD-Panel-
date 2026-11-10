@@ -32,7 +32,7 @@ export default function BotPage() {
   React.useEffect(() => {
     if (!data) return;
     setEnabled(data.enabled);
-    setToken(data.token);
+    setToken("");
     setChatIds(data.chatIds.length ? data.chatIds : [""]);
     setDailyBackup(data.dailyBackup);
   }, [data]);
@@ -40,7 +40,12 @@ export default function BotPage() {
   const cleanIds = () => chatIds.map((c) => c.trim()).filter(Boolean);
 
   const saveMut = useMutation({
-    mutationFn: () => api.saveBot({ enabled, token, chatIds: cleanIds(), dailyBackup }),
+    mutationFn: () => api.saveBot({
+      enabled,
+      ...(token.trim() ? { token: token.trim() } : {}),
+      chatIds: cleanIds(),
+      dailyBackup,
+    }),
     onSuccess: () => {
       toast.push("success", t("botSaved"));
       qc.invalidateQueries({ queryKey: ["bot"] });
@@ -95,7 +100,7 @@ export default function BotPage() {
               id="token"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="123456789:AAExxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              placeholder={data?.tokenConfigured ? `توکن ذخیره شده است (${data.tokenHint})؛ برای تغییر، توکن جدید را وارد کنید` : "توکن دریافتی از BotFather"}
               autoComplete="off"
             />
           </div>
@@ -163,7 +168,7 @@ export default function BotPage() {
               variant="neutral"
               className="w-full"
               onClick={() => testMut.mutate()}
-              disabled={testMut.isPending || !token || cleanIds().length === 0}
+              disabled={testMut.isPending || (!token.trim() && !data?.tokenConfigured) || cleanIds().length === 0}
             >
               <Send className="h-4 w-4" />
               {testMut.isPending ? t("sending") : t("sendTest")}
