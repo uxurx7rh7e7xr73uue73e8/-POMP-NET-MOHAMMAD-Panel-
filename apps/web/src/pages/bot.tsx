@@ -68,6 +68,7 @@ export default function BotPage() {
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-main" />
             <CardTitle>{t("botConfig")}</CardTitle>
+            <span className="mr-auto rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-[10px] font-bold tracking-wider text-violet-200">POMP NET MOHAMMAD BOT</span>
           </div>
           <CardDescription>
             {t("botConfigDesc")}
