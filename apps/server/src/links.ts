@@ -19,7 +19,7 @@ interface LinkContext {
 }
 
 function label(inbound: Inbound): string {
-  return `icubaby/SideRail - ${inbound.tag}`;
+  return `POMP NET MOHAMMAD - ${inbound.tag}`;
 }
 
 function commonQuery(ctx: LinkContext): Record<string, string> {
