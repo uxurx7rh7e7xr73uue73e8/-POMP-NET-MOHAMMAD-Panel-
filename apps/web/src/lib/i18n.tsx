@@ -968,7 +968,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     () => (localStorage.getItem("sr_lang") as Lang) || "fa",
   );
 
-  React.useEffect(() => {\n    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";\n    document.documentElement.lang = lang;\n  }, [lang]);\n\n  const setLang = React.useCallback((l: Lang) => {
+  React.useEffect(() => {
+    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const setLang = React.useCallback((l: Lang) => {
     localStorage.setItem("sr_lang", l);
     setLangState(l);
   }, []);
