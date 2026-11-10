@@ -211,7 +211,7 @@ const en = {
   panelInitialized: "Panel initialized",
   passwordsMismatch: "Passwords do not match",
   welcomeBack: "Welcome back",
-  signInPanel: "Sign in to your SideRail panel",
+  signInPanel: "Sign in to POMP NET MOHAMMAD",
   signIn: "Sign in",
   signingIn: "Signing in...",
   enterCredentials: "Enter your username and password",
@@ -274,7 +274,7 @@ const en = {
   detailPanelInit: "panel initialized",
 
   // welcome dialog
-  welcomeTitle: "Welcome to SideRail",
+  welcomeTitle: "Welcome to POMP NET MOHAMMAD — QUANTUM NEXUS",
   welcomeCrafted: "This panel is crafted with care by",
   welcomeFree: "completely free",
   welcomeAndShared: "and shared",
