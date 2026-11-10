@@ -3,33 +3,33 @@
 @tailwind utilities;
 
 :root {
-  --main: #a3e635;
+  --main: #8b35ff;
   --overlay: rgba(0, 0, 0, 0.8);
-  --bg: #dfe5f2;
-  --bw: #fff;
+  --bg: #070610;
+  --bw: #111020;
   --blank: #000;
-  --border: #000;
-  --text: #000;
-  --mtext: #000;
-  --ring: #000;
-  --ring-offset: #fff;
-  --shadow: 4px 4px 0px 0px var(--border);
+  --border: #33205a;
+  --text: #f2edff;
+  --mtext: #ffffff;
+  --ring: #8b35ff;
+  --ring-offset: #070610;
+  --shadow: 0 0 24px rgba(139,53,255,.16);
   --gap: 1rem;
   --duration: 40s;
 }
 
 .dark {
-  --main: #a3e635;
+  --main: #8b35ff;
   --overlay: rgba(0, 0, 0, 0.85);
-  --bg: #0b0b0f;
-  --bw: #16161d;
+  --bg: #070610;
+  --bw: #111020;
   --blank: #fff;
-  --border: #000;
-  --text: #e8e8ea;
-  --mtext: #000;
-  --ring: #a3e635;
-  --ring-offset: #0b0b0f;
-  --shadow: 4px 4px 0px 0px #000;
+  --border: #33205a;
+  --text: #f2edff;
+  --mtext: #ffffff;
+  --ring: #168cff;
+  --ring-offset: #070610;
+  --shadow: 0 0 24px rgba(139,53,255,.16);
 }
 
 * {
@@ -43,7 +43,7 @@ body,
 }
 
 body {
-  background-color: var(--bg);
+  background-color: var(--bg);\n  font-family: "Vazirmatn", Inter, sans-serif;
   color: var(--text);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
