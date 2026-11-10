@@ -97,8 +97,8 @@ function TrafficBar({ user }: { user: User }) {
         }
       />
       <div className="flex items-center gap-3 text-[11px] font-base">
-        <span className="text-lime-500">↓ {formatBytes(user.down)}</span>
-        <span className="text-sky-400">↑ {formatBytes(user.up)}</span>
+        <span className="text-[#8b35ff]">↓ {formatBytes(user.down)}</span>
+        <span className="text-[#168cff]">↑ {formatBytes(user.up)}</span>
       </div>
     </div>
   );
@@ -110,7 +110,7 @@ function OnlineDot({ online }: { online: boolean }) {
       <span
         className={cn(
           "inline-block h-2.5 w-2.5 rounded-full border-2 border-border",
-          online ? "animate-pulse bg-lime-400" : "bg-zinc-500",
+          online ? "animate-pulse bg-[#168cff]" : "bg-zinc-500",
         )}
       />
       <span className="text-xs font-base text-text/60">{online ? onlineLabel : offlineLabel}</span>
