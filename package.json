@@ -1,8 +1,8 @@
 {
-  "name": "siderail",
+  "name": "pomp-net-quantum-nexus",
   "version": "1.0.0",
   "private": true,
-  "description": "SideRail - Xray-core VPN management panel with one-click Railway deploy",
+  "description": "POMP NET MOHAMMAD QUANTUM NEXUS - Xray-core VPN management panel",
   "license": "MIT",
   "engines": {
     "node": ">=22.5.0"
