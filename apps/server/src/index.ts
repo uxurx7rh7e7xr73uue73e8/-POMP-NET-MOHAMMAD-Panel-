@@ -39,7 +39,7 @@ seedDefaultRouting();
 const app = express();
 app.disable("x-powered-by");
 app.use((_req, res, next) => {
-  res.setHeader("X-Powered-By", "SideRail by icubaby");
+  res.setHeader("X-Powered-By", "POMP NET MOHAMMAD — QUANTUM NEXUS");
   res.setHeader("X-SideRail-Author", "icubaby");
   res.setHeader("X-SideRail-Repo", "https://github.com/icubaby/SideRail");
   next();
@@ -80,7 +80,7 @@ const server = http.createServer((req, res) => {
 attachTunnel(server);
 
 server.listen(config.port, config.host, async () => {
-  console.log(`SideRail listening on http://${config.host}:${config.port}`);
+  console.log(`POMP NET MOHAMMAD — QUANTUM NEXUS listening on http://${config.host}:${config.port}`);
   await startXray();
   void refreshIpInfo();
 });
