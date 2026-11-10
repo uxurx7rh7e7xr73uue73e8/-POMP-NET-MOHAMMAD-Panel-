@@ -157,11 +157,8 @@ export async function testBot(
   chatIds: string[],
 ): Promise<{ ok: boolean; error?: string }> {
   if (!token || chatIds.length === 0) return { ok: false, error: "token and chat id required" };
-  const branded = await apiCall(token, "setMyName", { name: "POMP NET MOHAMMAD" });
-  if (!branded.ok) return { ok: false, error: branded.description || "Could not set Telegram bot display name" };
-  await apiCall(token, "setMyDescription", {
-    description: "POMP NET MOHAMMAD — QUANTUM NEXUS | Official panel notifications and secure backups."
-  });
+  const identity = await apiCall(token, "getMe", {});
+  if (!identity.ok) return { ok: false, error: identity.description || "Telegram token validation failed" };
   const message =
     "<b>🚀 POMP NET MOHAMMAD BOT</b>\n" +
     "<b>QUANTUM NEXUS · اتصال ربات برقرار شد</b>\n\n" +
@@ -364,10 +361,6 @@ export async function startTelegramBot(): Promise<void> {
         }
         activeToken = cfg.token;
         await apiCall(cfg.token, "deleteWebhook", { drop_pending_updates: false });
-        await apiCall(cfg.token, "setMyName", { name: "POMP NET MOHAMMAD" });
-        await apiCall(cfg.token, "setMyDescription", {
-          description: "POMP NET MOHAMMAD — QUANTUM NEXUS | ساخت کانفیگ اختصاصی، وضعیت اشتراک و پشتیبانی."
-        });
         await apiCall(cfg.token, "setMyCommands", {
           commands: [
             { command: "start", description: "شروع و راهنمای ربات" },
