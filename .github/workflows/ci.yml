@@ -72,4 +72,23 @@ jobs:
           fi
           curl -fsS http://127.0.0.1:18080/api/status | tee /tmp/pompnet-status.json
           node -e 'const x=require("/tmp/pompnet-status.json"); if (x.name !== "POMP NET MOHAMMAD — QUANTUM NEXUS" || x.setup !== false) process.exit(1)'
-          echo "Docker startup, API health and Xray runtime smoke test passed."
+          curl -fsS -c /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
+            -d '{"username":"ci-owner","password":"TempPass123!"}' \
+            http://127.0.0.1:18080/api/setup > /tmp/pompnet-setup.json
+          curl -fsS -b /tmp/pompnet-cookies.txt \
+            http://127.0.0.1:18080/api/me > /tmp/pompnet-me.json
+          node -e 'const x=require("/tmp/pompnet-me.json"); if (!x.admin || x.admin.role !== "owner") process.exit(1)'
+          docker exec pompnet-ci node -e '
+            const net = require("node:net");
+            const ports = [20000, 20001, 20002, 20003, 20004];
+            Promise.all(ports.map(port => new Promise((resolve, reject) => {
+              const socket = net.createConnection({host:"127.0.0.1", port});
+              socket.setTimeout(4000);
+              socket.once("connect", () => { socket.destroy(); resolve(port); });
+              socket.once("timeout", () => { socket.destroy(); reject(new Error("timeout on "+port)); });
+              socket.once("error", reject);
+            }))).then(open => {
+              console.log("Xray inbound TCP listeners open:", open.join(", "));
+            }).catch(error => { console.error(error); process.exit(1); });
+          '
+          echo "Docker image, setup/auth API, Xray process and five inbound listeners passed."
