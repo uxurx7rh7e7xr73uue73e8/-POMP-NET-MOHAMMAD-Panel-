@@ -184,7 +184,7 @@ export default function DashboardPage() {
           value={pct(s?.cpu.usage ?? 0)}
           sub={`${s?.cpu.cores ?? 0} ${t("cores")} · ${t("avg")} ${pct(s?.cpu.avg ?? 0)}`}
           progress={s?.cpu.usage ?? 0}
-          accent="#a3e635"
+          accent="#8b35ff"
         />
         <StatCard
           icon={MemoryStick}
@@ -192,7 +192,7 @@ export default function DashboardPage() {
           value={pct(s?.ram.usage ?? 0)}
           sub={`${formatBytes(s?.ram.used ?? 0)} / ${formatBytes(s?.ram.total ?? 0)}`}
           progress={s?.ram.usage ?? 0}
-          accent="#7dd3fc"
+          accent="#168cff"
         />
         <StatCard
           icon={Layers}
@@ -200,7 +200,7 @@ export default function DashboardPage() {
           value={pct(s?.swap.usage ?? 0)}
           sub={`${formatBytes(s?.swap.used ?? 0)} / ${formatBytes(s?.swap.total ?? 0)}`}
           progress={s?.swap.usage ?? 0}
-          accent="#f0abfc"
+          accent="#8b35ff"
         />
         <StatCard
           icon={HardDrive}
@@ -208,7 +208,7 @@ export default function DashboardPage() {
           value={pct(s?.storage.usage ?? 0)}
           sub={`${t("free")} ${formatBytes(s?.storage.free ?? 0)}`}
           progress={s?.storage.usage ?? 0}
-          accent="#fda4af"
+          accent="#168cff"
         />
       </div>
 
