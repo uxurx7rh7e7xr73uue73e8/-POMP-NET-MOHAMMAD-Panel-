@@ -304,6 +304,7 @@ async function handleTelegramMessage(token: string, update: TelegramUpdate): Pro
         createdBy: null,
       });
       restartXray();
+      await sleep(1500);
       await sendTelegramText(token, chatId, "✅ حساب اختصاصی شما ساخته شد؛ کانفیگ‌ها در پیام بعدی ارسال می‌شوند.");
       await sendClientConfig(token, chatId, created);
       return;
@@ -355,8 +356,14 @@ export async function startTelegramBot(): Promise<void> {
         continue;
       }
       if (activeToken !== cfg.token) {
-        offset = 0;
+        const previousToken = getSetting("bot_poll_token") || "";
+        if (previousToken !== cfg.token) {
+          offset = 0;
+          setSetting("bot_update_offset", "0");
+          setSetting("bot_poll_token", cfg.token);
+        }
         activeToken = cfg.token;
+        await apiCall(cfg.token, "deleteWebhook", { drop_pending_updates: false });
         await apiCall(cfg.token, "setMyName", { name: "POMP NET MOHAMMAD" });
         await apiCall(cfg.token, "setMyDescription", {
           description: "POMP NET MOHAMMAD — QUANTUM NEXUS | ساخت کانفیگ اختصاصی، وضعیت اشتراک و پشتیبانی."
