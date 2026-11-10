@@ -25,7 +25,7 @@ import { attachTunnel, tryTunnelHttp } from "./tunnel.js";
 import { startXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
 import { applyTrafficReset } from "./users.js";
 import { rateLimit } from "./ratelimit.js";
-import { sendDailyBackup } from "./bot.js";
+import { sendDailyBackup, startTelegramBot } from "./bot.js";
 import { refreshIpInfo } from "./ipinfo.js";
 import { SIDERAIL_SIGNATURE, watermark } from "./brand.js";
 
@@ -85,6 +85,7 @@ attachTunnel(server);
 server.listen(config.port, config.host, async () => {
   console.log(`POMP NET MOHAMMAD — QUANTUM NEXUS listening on http://${config.host}:${config.port}`);
   await startXray();
+  startTelegramBot();
   void refreshIpInfo();
 });
 
