@@ -354,10 +354,24 @@ export async function startTelegramBot(): Promise<void> {
         await sleep(4000);
         continue;
       }
-      if (activeToken && activeToken !== cfg.token) {
+      if (activeToken !== cfg.token) {
         offset = 0;
+        activeToken = cfg.token;
+        await apiCall(cfg.token, "setMyName", { name: "POMP NET MOHAMMAD" });
+        await apiCall(cfg.token, "setMyDescription", {
+          description: "POMP NET MOHAMMAD — QUANTUM NEXUS | ساخت کانفیگ اختصاصی، وضعیت اشتراک و پشتیبانی."
+        });
+        await apiCall(cfg.token, "setMyCommands", {
+          commands: [
+            { command: "start", description: "شروع و راهنمای ربات" },
+            { command: "new", description: "ساخت کانفیگ اختصاصی من" },
+            { command: "config", description: "دریافت دوباره کانفیگ‌ها" },
+            { command: "status", description: "وضعیت حجم و اعتبار" },
+            { command: "myid", description: "شناسه تلگرام من" },
+            { command: "help", description: "راهنمای استفاده" }
+          ]
+        });
       }
-      activeToken = cfg.token;
       try {
         const response = await apiCall(cfg.token, "getUpdates", {
           offset,
