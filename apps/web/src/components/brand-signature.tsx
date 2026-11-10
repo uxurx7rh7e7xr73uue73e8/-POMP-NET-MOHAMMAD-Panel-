@@ -16,7 +16,7 @@ export function BrandSignature({ compact = false }: { compact?: boolean }) {
           <p className="mt-1 text-xs leading-6 text-slate-300">بنیان‌گذار و مالک پروژه: <span className="font-bold text-white">آقای محمدی</span><span className="mx-2 text-violet-300/60">✦</span>قدرت ساخت، آزادی انتخاب، کنترل در دستان تو</p>
         </div>
         <div className="rounded-xl border border-violet-300/20 bg-violet-500/10 px-3 py-2">
-          <div className="flex items-center gap-2 text-xs font-bold text-violet-100"><Heart className="h-4 w-4 fill-current text-pink-300" />حمایت از توسعه پروژه</div>
+          <div className="flex items-center gap-2 text-xs font-bold text-violet-100"><Heart className="h-4 w-4 fill-current text-sky-300" />حمایت از توسعه پروژه</div>
           <p className="mt-1 text-[10px] text-slate-300">بانک مسکن · به نام آقای محمدی</p>
           <p className="mt-1 text-[10px] text-slate-400">اطلاعات پرداخت امن از مسیر رسمی پشتیبانی اعلام می‌شود.</p>
         </div>
