@@ -297,14 +297,14 @@ export default function UsersPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <SummaryCard icon={Users2} label={t("clients")} value={summary.clients} accent="#a3e635" />
-        <SummaryCard icon={Wifi} label={t("online")} value={summary.online} accent="#7dd3fc" />
-        <SummaryCard icon={ShieldCheck} label={t("active")} value={summary.active} accent="#86efac" />
+        <SummaryCard icon={Users2} label={t("clients")} value={summary.clients} accent="#8b35ff" />
+        <SummaryCard icon={Wifi} label={t("online")} value={summary.online} accent="#168cff" />
+        <SummaryCard icon={ShieldCheck} label={t("active")} value={summary.active} accent="#b18cff" />
         <SummaryCard
           icon={BatteryWarning}
           label={t("depleting")}
           value={summary.depleting}
-          accent="#fda4af"
+          accent="#168cff"
         />
       </div>
 
