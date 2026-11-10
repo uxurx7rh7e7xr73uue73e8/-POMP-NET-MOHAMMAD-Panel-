@@ -94,7 +94,7 @@ function setAuthCookie(res: import("express").Response, token: string): void {
 }
 
 api.get("/status", (_req, res) => {
-  res.json({ setup: isSetupDone(), name: "SideRail" });
+  res.json({ setup: isSetupDone(), name: "POMP NET MOHAMMAD — QUANTUM NEXUS" });
 });
 
 api.post("/setup", (req, res) => {
@@ -321,7 +321,7 @@ api.delete("/activity", requirePermission("activity"), (req: AuthedRequest, res)
 api.get("/settings", requirePermission("settings"), (_req, res) => {
   res.json({
     xrayVersion: getSetting("xray_version") || "",
-    subTitle: getSetting("sub_title") || "SideRail",
+    subTitle: getSetting("sub_title") || "POMP NET MOHAMMAD — QUANTUM NEXUS",
   });
 });
 
