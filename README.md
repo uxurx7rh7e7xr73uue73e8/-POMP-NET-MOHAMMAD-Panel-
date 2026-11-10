@@ -1,8 +1,8 @@
-کد نویسی شده توسط تیم پمپ نت 
+POMP NET MOHAMMAD — QUANTUM NEXUS\n\nBEYOND CONNECTION. BEYOND LIMITS.\n\nطراحی و توسعه: تیم پمپ نت محمد 
 
 <div align="center">
 
-<img src=".github/banner.svg" width="100%" alt="SideRail" />
+<img src=".github/banner.svg" width="100%" alt="POMP NET MOHAMMAD — QUANTUM NEXUS" />
 
 <br/>
 <br/>
@@ -32,7 +32,7 @@
 <br/>
 <br/>
 
-**A bold, neobrutalist VPN control panel — powered by&nbsp;<a href="https://github.com/XTLS/Xray-core"><img src=".github/badges/link-xray.svg" alt="Xray-core" height="22" valign="middle" /></a>&nbsp;and shipped to&nbsp;<a href="https://railway.app"><img src=".github/badges/link-railway.svg" alt="Railway" height="22" valign="middle" /></a>&nbsp;in one click.**
+**A premium, Persian-ready VPN control panel branded as POMP NET MOHAMMAD — QUANTUM NEXUS — powered by&nbsp;<a href="https://github.com/XTLS/Xray-core"><img src=".github/badges/link-xray.svg" alt="Xray-core" height="22" valign="middle" /></a>&nbsp;and shipped to&nbsp;<a href="https://railway.app"><img src=".github/badges/link-railway.svg" alt="Railway" height="22" valign="middle" /></a>&nbsp;in one click.**
 
 *Clean client links. Live stats. Gorgeous subscription pages. No config, no fuss.*
 
@@ -45,7 +45,7 @@
 
 <br/>
 
-<img src=".github/sections/why.svg" width="380" alt="Why SideRail" />
+<img src=".github/sections/why.svg" width="380" alt="Why POMP NET QUANTUM NEXUS" />
 
 <table>
 <tr>
@@ -53,7 +53,7 @@
 
 **One job, done right**
 
-No feature bloat. SideRail masters **HTTP-based transports behind a TLS edge** — every link is clean, standard, and always `security=tls` on port `443`.
+No feature bloat. This panel manages **HTTP-based transports behind a TLS edge** — every link is clean, standard, and always `security=tls` on port `443`.
 
 </td>
 <td width="50%" valign="top">
