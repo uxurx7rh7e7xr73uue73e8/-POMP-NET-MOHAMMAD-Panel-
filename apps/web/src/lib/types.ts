@@ -129,7 +129,8 @@ export interface RoutingPreset {
 
 export interface BotConfig {
   enabled: boolean;
-  token: string;
+  tokenConfigured: boolean;
+  tokenHint: string;
   chatIds: string[];
   dailyBackup: boolean;
 }
