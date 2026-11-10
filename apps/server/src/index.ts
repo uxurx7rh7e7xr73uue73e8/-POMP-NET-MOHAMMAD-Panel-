@@ -22,7 +22,7 @@ import { seedDefaultRouting } from "./routing.js";
 import { api } from "./routes.js";
 import { sub, setSubStaticRoot } from "./sub.js";
 import { attachTunnel, tryTunnelHttp } from "./tunnel.js";
-import { startXray, collectTraffic, collectClientIps, enforceIpLimits } from "./xray.js";
+import { startXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
 import { applyTrafficReset } from "./users.js";
 import { rateLimit } from "./ratelimit.js";
 import { sendDailyBackup } from "./bot.js";
@@ -48,7 +48,10 @@ app.use(express.json({ limit: "25mb" }));
 app.use(cookieParser());
 
 app.set("trust proxy", true);
-app.get("/healthz", (_req, res) => res.json({ ok: true, ...watermark() }));
+app.get("/healthz", (_req, res) => {
+  const xray = isRunning();
+  res.status(xray ? 200 : 503).json({ ok: xray, xray, xrayVersion: xrayVersion(), service: "POMP NET MOHAMMAD — QUANTUM NEXUS", ...watermark() });
+});
 
 app.use("/api", rateLimit, api);
 app.use("/sub", sub);
