@@ -1,6 +1,6 @@
 import * as React from "react";
 
-export type Lang = "en" | "ru" | "zh";
+export type Lang = "fa" | "en" | "ru" | "zh";
 
 const en = {
   // nav / layout
@@ -838,9 +838,112 @@ const zh: Dict = {
   languageChanged: "语言已切换",
 };
 
-const dicts: Record<Lang, Dict> = { en, ru, zh };
+const fa: Dict = {
+  ...en,
+  dashboard: "داشبورد",
+  users: "کاربران",
+  inbounds: "ورودی‌ها",
+  routing: "مسیریابی",
+  activityLog: "گزارش فعالیت‌ها",
+  telegramBot: "ربات تلگرام",
+  settings: "تنظیمات",
+  signOut: "خروج",
+  version: "نسخه",
+  language: "زبان",
+  owner: "مالک",
+  admin: "مدیر",
+  administrator: "مدیر سیستم",
+  xrayPanel: "پنل Xray",
+  liveMetrics: "وضعیت زنده سیستم و نگهداری",
+  uptime: "مدت فعالیت",
+  running: "فعال",
+  stopped: "متوقف",
+  cpu: "پردازنده",
+  ram: "رم",
+  swap: "حافظه Swap",
+  storage: "فضای ذخیره‌سازی",
+  backupRestore: "پشتیبان‌گیری و بازیابی",
+  backupDesc: "خروجی یا بازیابی کاربران و ورودی‌ها",
+  exportBackup: "دریافت نسخه پشتیبان",
+  importBackup: "بازیابی نسخه پشتیبان",
+  restartXray: "راه‌اندازی مجدد Xray",
+  serverIp: "آی‌پی سرور",
+  location: "موقعیت",
+  isp: "ارائه‌دهنده اینترنت",
+  manageClients: "مدیریت کاربران و اشتراک‌ها",
+  newUser: "کاربر جدید",
+  clients: "کاربران",
+  online: "آنلاین",
+  offline: "آفلاین",
+  active: "فعال",
+  actions: "عملیات",
+  enabled: "فعال‌سازی",
+  status: "وضعیت",
+  client: "کاربر",
+  traffic: "ترافیک",
+  remaining: "باقی‌مانده",
+  duration: "مدت",
+  edit: "ویرایش",
+  more: "بیشتر",
+  copy: "کپی",
+  delete: "حذف",
+  cancel: "لغو",
+  unlimited: "نامحدود",
+  saveChanges: "ذخیره تغییرات",
+  createUser: "ایجاد کاربر",
+  saving: "در حال ذخیره...",
+  inboundsDesc: "فعال یا غیرفعال‌سازی ورودی‌های HTTP",
+  routingDesc: "مسدودسازی دامنه‌ها برای ورودی‌های انتخاب‌شده",
+  recentEvents: "آخرین رویدادهای مدیریتی",
+  clearLog: "پاک‌کردن گزارش",
+  noActivity: "هنوز فعالیتی ثبت نشده است",
+  manageAccount: "مدیریت حساب و مدیران",
+  changeCredentials: "تغییر اطلاعات ورود",
+  username: "نام کاربری",
+  newPassword: "رمز عبور جدید",
+  currentPassword: "رمز عبور فعلی",
+  admins: "مدیران",
+  addAdmin: "افزودن مدیر",
+  pageAccess: "دسترسی به صفحات",
+  botDesc: "اعلان‌ها و پشتیبان‌گیری خودکار روزانه در تلگرام",
+  botConfig: "تنظیمات ربات",
+  save: "ذخیره",
+  sendTest: "ارسال پیام آزمایشی",
+  firstSetup: "راه‌اندازی اولیه",
+  createOwner: "برای شروع، حساب مالک را ایجاد کنید.",
+  ownerUsername: "نام کاربری مالک",
+  createAccount: "ایجاد حساب",
+  welcomeBack: "خوش آمدید",
+  signInPanel: "ورود به پنل پمپ نت محمد",
+  signIn: "ورود",
+  enterCredentials: "نام کاربری و رمز عبور را وارد کنید",
+  oneClickDeploy: "استقرار سریع روی Railway",
+  loadingSub: "در حال بارگذاری اشتراک...",
+  subNotFound: "اشتراک پیدا نشد",
+  dataUsed: "ترافیک مصرف‌شده",
+  download: "دریافت",
+  upload: "ارسال",
+  expires: "تاریخ انقضا",
+  configs: "کانفیگ‌ها",
+  subscriptionQr: "کد QR اشتراک",
+  welcomeTitle: "به POMP NET MOHAMMAD خوش آمدید",
+  welcomeCrafted: "ساخته و توسعه‌یافته توسط",
+  welcomeFree: "با هویت اختصاصی POMP NET",
+  welcomeAndShared: "محصول",
+  doNotSell: "توجه",
+  welcomeSellWarn: "حقوق و مجوزهای سورس اصلی مطابق فایل‌های LICENSE و NOTICE محفوظ است.",
+  welcomeStar: "قدرت ساخت، آزادی انتخاب، کنترل در دستان تو.",
+  star: "ستاره",
+  welcomeStarEnd: "از پروژه پشتیبانی کنید.",
+  starOnGithub: "مشاهده مخزن در GitHub",
+  maybeLater: "ادامه",
+  languageChanged: "زبان تغییر کرد",
+};
+
+const dicts: Record<Lang, Dict> = { fa, en, ru, zh };
 
 export const LANGUAGES: { code: Lang; label: string }[] = [
+  { code: "fa", label: "فارسی" },
   { code: "en", label: "English" },
   { code: "ru", label: "Русский" },
   { code: "zh", label: "中文" },
@@ -862,10 +965,10 @@ export function useI18n(): I18nState {
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = React.useState<Lang>(
-    () => (localStorage.getItem("sr_lang") as Lang) || "en",
+    () => (localStorage.getItem("sr_lang") as Lang) || "fa",
   );
 
-  const setLang = React.useCallback((l: Lang) => {
+  React.useEffect(() => {\n    document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";\n    document.documentElement.lang = lang;\n  }, [lang]);\n\n  const setLang = React.useCallback((l: Lang) => {
     localStorage.setItem("sr_lang", l);
     setLangState(l);
   }, []);
