@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import { useI18n, LANGUAGES, type Lang } from "@/lib/i18n";
 import { GITHUB_URL, GITHUB_REPO, TELEGRAM_URL, PANEL_VERSION } from "@/lib/brand";
 import { cn } from "@/lib/utils";
+import { BrandSignature } from "@/components/brand-signature";
 
 /**
  * A bold, modern shell for the Setup and Login pages. A split layout: a loud
@@ -44,7 +45,8 @@ export function AuthShell({
         <div className="absolute bottom-[-10%] left-1/3 h-80 w-80 rounded-full bg-blue-500/20 blur-[110px] animate-[drift3_36s_ease-in-out_infinite]" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center p-4 lg:p-8">
+      <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-4 p-4 lg:p-8">
+        <BrandSignature />
         <div className="grid w-full overflow-hidden rounded-base border-2 border-border neo-shadow lg:grid-cols-[1.05fr_1fr]">
           {/* Brand / hero panel */}
           <div className="relative hidden flex-col justify-between overflow-hidden bg-main p-10 text-mtext lg:flex">
