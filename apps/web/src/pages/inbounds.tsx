@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Router, Waypoints, Network, Lock, Plus, Trash2, Gamepad2, CalendarClock } from "lucide-react";
 import { api } from "@/lib/api";
@@ -65,7 +65,7 @@ export default function InboundsPage() {
     create.mutate({ tag: "POMP-GAME-ROUTE", protocol: "vless", transport: "xhttp", expireDays: 0 });
   };
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     create.mutate({ tag, protocol, transport, expireDays });
   };
