@@ -31,8 +31,11 @@ function persianDate(timestamp: number): string {
 }
 
 function firstTwoInboundIds(inbounds: Inbound[]): { first: number | undefined; second: number | undefined } {
-  const ids = [...inbounds].sort((a, b) => a.id - b.id).map((ib) => ib.id);
-  return { first: ids[0], second: ids[1] };
+  const ordered = [...inbounds].sort((a, b) => a.id - b.id);
+  return {
+    first: ordered.find((ib) => ib.tag === "VLESS-WS")?.id ?? ordered[0]?.id,
+    second: ordered.find((ib) => ib.tag === "VLESS-XHTTP")?.id ?? ordered[1]?.id,
+  };
 }
 
 export function inboundDisplayLabel(inbound: Inbound, user: UserWithInbounds, allInbounds: Inbound[]): string {
