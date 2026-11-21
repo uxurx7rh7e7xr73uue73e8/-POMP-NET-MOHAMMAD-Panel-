@@ -332,9 +332,9 @@ async function handleTelegramMessage(token: string, update: TelegramUpdate): Pro
   }
 
   if (command === "/support") {
-    const firstMessage = raw.replace(/^\\/support(?:@\\w+)?\\s*/i, "").trim();
+    const firstMessage = raw.replace(/^\/support(?:@\w+)?\s*/i, "").trim();
     if (!firstMessage) {
-      await sendTelegramText(token, chatId, "برای ثبت تیکت، پیام خود را بعد از دستور وارد کنید:\\n<code>/support متن درخواست شما</code>");
+      await sendTelegramText(token, chatId, "برای ثبت تیکت، پیام خود را بعد از دستور وارد کنید:\n<code>/support متن درخواست شما</code>");
       return;
     }
     const linked = listUsers().find((u) => u.telegram_id === telegramId);
@@ -344,7 +344,7 @@ async function handleTelegramMessage(token: string, update: TelegramUpdate): Pro
     const ticketId = Number(info.lastInsertRowid);
     db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'user', ?, ?, ?)")
       .run(ticketId, telegramId, firstMessage, now);
-    await sendTelegramText(token, chatId, `✅ درخواست شما ثبت شد.\\nشماره تیکت: <code>#${ticketId}</code>\\nپاسخ پشتیبانی از همین ربات ارسال می‌شود.`);
+    await sendTelegramText(token, chatId, `✅ درخواست شما ثبت شد.\nشماره تیکت: <code>#${ticketId}</code>\nپاسخ پشتیبانی از همین ربات ارسال می‌شود.`);
     return;
   }
 
