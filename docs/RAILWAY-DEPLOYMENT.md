@@ -36,21 +36,16 @@ Official references:
 5. Set `NODE_ENV=production`, `PORT=8080`, and a long random `JWT_SECRET`. Keep `SIDERAIL_DATA_DIR=/data`. Do not set TCP Proxy variables until the TCP Proxy actually exists and its port mapping is confirmed.
 6. Deploy and wait for `/healthz` to return HTTP 200 with `ok: true` and `xray: true`.
 7. Open the generated domain and complete the one-time Owner setup. Use a unique password; do not reuse a password from another service.
+8. (Optional) To publish one SOCKS5 or HTTP inbound, select its internal port, create a Railway TCP Proxy for that exact port, then set `RAILWAY_TCP_PROXY_INTERNAL_PORT`, `PUBLIC_TCP_PROXY_HOST`, and `PUBLIC_TCP_PROXY_PORT` from the Railway-generated mapping. Only that matching inbound will be included in subscriptions. Do not set these variables before the TCP Proxy exists.
 8. Verify that users, settings and login survive a redeploy before adding real customers.
 
-## What CI currently proves
+## What CI proves (and does not prove)
 
-The latest successful GitHub Actions run on this branch (commit `fdcbc6347f11fa43df916d686e41c69334671767`) completed:
-- TypeScript typecheck
-- Production web/server build
-- Production Docker image build
-- Container startup
-- API health and live Xray process
-- Initial owner setup and authenticated `/api/me`
-- Local Xray TCP listeners and a local UDP socket-table check
-- Subscription output containing WireGuard/SOCKS/HTTP URI schemes
+The CI workflow now has two separate paths:
+- A non-Railway Docker smoke test for the general Xray inbound implementation.
+- A Railway-mode smoke test that verifies WireGuard is omitted, only the selected TCP-proxy-mapped SOCKS/HTTP inbound is exported, and the generated proxy URI uses the configured public TCP endpoint.
 
-Important: the CI container does not run with Railway runtime environment variables, so its local smoke tests exercise the non-Railway code path. The UDP socket-table test only proves that a UDP socket exists inside the CI container. It does **not** prove Railway public UDP reachability. Likewise, checking generated URI schemes does not prove a phone can connect to them. End-to-end tests from a real client and from the deployed Railway domain are still required.
+The Railway-mode test uses simulated Railway environment variables inside GitHub Actions. It verifies application logic, **not** the existence of a real Railway TCP Proxy or public internet reachability. A successful CI run still does not prove that a phone can connect. End-to-end tests from a real client against the deployed Railway domain and, if enabled, the generated TCP Proxy endpoint are required. Do not describe the CI UDP socket check as public UDP support.
 
 ## Go-live checklist
 
