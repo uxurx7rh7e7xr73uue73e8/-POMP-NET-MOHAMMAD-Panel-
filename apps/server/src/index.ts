@@ -25,7 +25,7 @@ import { attachTunnel, tryTunnelHttp } from "./tunnel.js";
 import { startXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
 import { applyTrafficReset } from "./users.js";
 import { rateLimit } from "./ratelimit.js";
-import { sendDailyBackup, startTelegramBot } from "./bot.js";
+import { sendDailyBackup, startTelegramBot, notifyExpiringUsers } from "./bot.js";
 import { refreshIpInfo } from "./ipinfo.js";
 import { SIDERAIL_SIGNATURE, watermark } from "./brand.js";
 
@@ -120,6 +120,11 @@ setInterval(() => {
     /* noop */
   }
 }, 3_600_000);
+
+// Send expiry reminders once per threshold; notification_log prevents duplicate delivery.
+setInterval(() => {
+  void notifyExpiringUsers().catch((error) => console.error("[POMP NET expiry notifications]", error));
+}, 60 * 60 * 1000);
 
 let lastBackupDay = new Date().getDate();
 setInterval(() => {
