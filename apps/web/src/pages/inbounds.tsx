@@ -126,7 +126,6 @@ export default function InboundsPage() {
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
                 <option value="wireguard">WireGuard · UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
-                <option value="wireguard">WireGuard · UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
