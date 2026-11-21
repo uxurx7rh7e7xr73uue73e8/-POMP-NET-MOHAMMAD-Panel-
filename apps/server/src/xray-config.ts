@@ -55,7 +55,6 @@ function protocolSettings(inbound: Inbound, users: UserWithInbounds[]) {
       auth: "password",
       accounts: clients.map((client) => ({ user: client.email, pass: client.password })),
       udp: true,
-      ip: "127.0.0.1",
     };
   }
   if (inbound.protocol === "http") {
