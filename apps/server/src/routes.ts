@@ -52,7 +52,7 @@ import {
   deleteRoutingRule,
 } from "./routing.js";
 import { DOMAIN_PRESETS, COUNTRY_IP_PRESETS } from "./routing-presets.js";
-import { getBotConfig, saveBotConfig, testBot, sendBroadcastToLinkedUsers } from "./bot.js";
+import { getBotConfig, saveBotConfig, testBot, sendBroadcastToLinkedUsers, sendTelegramToChat } from "./bot.js";
 
 export const api = Router();
 
@@ -617,8 +617,10 @@ api.post("/support/tickets/:id/reply", requirePermission("users"), async (req: A
   db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'admin', ?, ?, ?)")
     .run(id, req.admin!.username, body.data.message, now);
   db.prepare("UPDATE support_tickets SET status='pending', updated_at=? WHERE id=?").run(now, id);
-  logActivity(req.admin!.username, "support_reply", `ticket #${id}`);
-  res.json({ ok: true });
+  let delivered = false;
+  if (ticket.telegram_id) delivered = await sendTelegramToChat(ticket.telegram_id, `🎧 <b>پاسخ پشتیبانی POMP NET · تیکت #${id}</b>\\n\\n${body.data.message}`);
+  logActivity(req.admin!.username, "support_reply", `ticket #${id}; telegram=${delivered}`);
+  res.json({ ok: true, telegramDelivered: delivered });
 });
 
 api.patch("/support/tickets/:id", requirePermission("users"), (req, res) => {
