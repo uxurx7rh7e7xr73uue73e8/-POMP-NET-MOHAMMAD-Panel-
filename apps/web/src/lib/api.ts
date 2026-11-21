@@ -45,6 +45,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   status: () => request<{ setup: boolean; name: string }>("/api/status"),
+  capabilities: () => request<import("./types").RuntimeCapabilities>("/api/capabilities"),
   setup: (username: string, password: string) =>
     request<{ ok: boolean }>("/api/setup", {
       method: "POST",
