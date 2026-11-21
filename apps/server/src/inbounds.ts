@@ -26,6 +26,7 @@ const SEED_INBOUNDS: SeedDef[] = [
 export function seedInbounds(): void {
   // Add only missing presets; never reset or overwrite an existing panel's
   // inbound IDs, ports, paths, user assignments or expiry settings.
+  const existingIds = (db.prepare("SELECT id FROM inbounds ORDER BY id ASC").all() as { id: number }[]).map((r) => r.id);
   const used = new Set((db.prepare("SELECT port FROM inbounds").all() as { port: number }[]).map((r) => r.port));
   let nextPort = config.inboundBasePort;
   const insert = db.prepare(
@@ -41,6 +42,18 @@ export function seedInbounds(): void {
     }
     const path = `/pompnet/${s.transport}-${nanoid(10)}`;
     insert.run(s.tag, s.protocol, s.transport, nextPort, path, "", Date.now());
+    const newId = Number((db.prepare("SELECT id FROM inbounds WHERE tag = ?").get(s.tag) as { id: number }).id);
+    // Preserve manually restricted accounts. Users who already had every
+    // existing inbound assigned receive the new preset as part of their bundle.
+    if (existingIds.length > 0) {
+      const users = db.prepare("SELECT id FROM users").all() as { id: number }[];
+      const assignedQuery = db.prepare("SELECT inbound_id FROM user_inbounds WHERE user_id = ?");
+      const addAssignment = db.prepare("INSERT OR IGNORE INTO user_inbounds (user_id, inbound_id) VALUES (?, ?)");
+      for (const user of users) {
+        const assigned = new Set((assignedQuery.all(user.id) as { inbound_id: number }[]).map((row) => row.inbound_id));
+        if (existingIds.every((id) => assigned.has(id))) addAssignment.run(user.id, newId);
+      }
+    }
     used.add(nextPort);
     nextPort++;
   }
