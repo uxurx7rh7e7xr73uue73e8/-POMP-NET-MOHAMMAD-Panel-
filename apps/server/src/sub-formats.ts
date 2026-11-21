@@ -84,7 +84,7 @@ export function buildClashConfig(
   inbounds: Inbound[],
 ): string {
   const proxies = inbounds
-    .filter((ib) => ib.enabled && user.inbound_ids.includes(ib.id))
+    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
     .map((inbound) => clashProxy({ host, user, inbound, allInbounds: inbounds }))
     .filter((p): p is Record<string, unknown> => p !== null);
 
