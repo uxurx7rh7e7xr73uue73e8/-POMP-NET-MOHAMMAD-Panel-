@@ -9,6 +9,7 @@
  * Watermark: sr-icubaby-2025-9f4c1a7e
  */
 import { Router } from "express";
+import { getRuntimeCapabilities } from "./railway-capabilities.js";
 import { z } from "zod";
 import {
   isSetupDone,
@@ -92,6 +93,10 @@ function setAuthCookie(res: import("express").Response, token: string): void {
     maxAge: 7 * 86_400_000,
   });
 }
+
+api.get("/capabilities", (_req, res) => {
+  res.json(getRuntimeCapabilities());
+});
 
 api.get("/status", (_req, res) => {
   res.json({ setup: isSetupDone(), name: "POMP NET MOHAMMAD — QUANTUM NEXUS" });
