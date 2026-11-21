@@ -156,6 +156,10 @@ export function migrate(): void {
     CREATE INDEX IF NOT EXISTS idx_server_traffic_ts ON server_traffic(ts DESC);
   `);
   migrateColumns();
+  const inboundCols = db.prepare("PRAGMA table_info(inbounds)").all() as { name: string }[];
+  if (!inboundCols.some((c) => c.name === "expires_at")) {
+    db.exec("ALTER TABLE inbounds ADD COLUMN expires_at INTEGER");
+  }
 }
 
 function migrateColumns(): void {
