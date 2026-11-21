@@ -163,8 +163,8 @@ api.get("/inbounds", requirePermission("inbounds"), (_req, res) => {
 api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) => {
   const body = z.object({
     tag: z.string().trim().min(2).max(48),
-    protocol: z.enum(["vless", "vmess", "trojan"]),
-    transport: z.enum(["ws", "xhttp", "httpupgrade"]),
+    protocol: z.enum(["vless", "vmess", "trojan", "wireguard", "socks", "http"]),
+    transport: z.enum(["ws", "xhttp", "httpupgrade", "udp", "tcp"]).optional().default("xhttp"),
     expireDays: z.number().int().min(0).max(3650).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
