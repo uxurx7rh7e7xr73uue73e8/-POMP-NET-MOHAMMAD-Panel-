@@ -52,7 +52,7 @@ import {
   deleteRoutingRule,
 } from "./routing.js";
 import { DOMAIN_PRESETS, COUNTRY_IP_PRESETS } from "./routing-presets.js";
-import { getBotConfig, saveBotConfig, testBot } from "./bot.js";
+import { getBotConfig, saveBotConfig, testBot, sendBroadcastToLinkedUsers } from "./bot.js";
 
 export const api = Router();
 
@@ -561,6 +561,90 @@ api.post("/bot/test", requirePermission("bot"), async (req: AuthedRequest, res) 
   }
   logActivity(req.admin!.username, "bot_test", "");
   res.json({ ok: true });
+});
+
+
+api.post("/users/:id/renew", requirePermission("users"), (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0 || !canAccessUser(req, id)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const body = z.object({ days: z.number().int().min(1).max(3650), note: z.string().max(500).optional() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid renewal" }); return; }
+  const user = getUser(id);
+  if (!user) { res.status(404).json({ error: "not found" }); return; }
+  const now = Date.now();
+  const previous = user.expire_at;
+  const base = previous && previous > now ? previous : now;
+  const next = base + body.data.days * 86_400_000;
+  db.prepare("UPDATE users SET expire_at = ?, enabled = 1 WHERE id = ?").run(next, id);
+  db.prepare("INSERT INTO renewal_history (user_id, days, previous_expire_at, new_expire_at, actor, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(id, body.data.days, previous, next, req.admin!.username, body.data.note || "", now);
+  logActivity(req.admin!.username, "user_renew", `#${id} +${body.data.days} days`);
+  restartXray();
+  res.json({ ok: true, user: getUser(id), expireAt: next });
+});
+
+api.get("/users/:id/renewals", requirePermission("users"), (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  if (!canAccessUser(req, id)) { res.status(403).json({ error: "forbidden" }); return; }
+  res.json(db.prepare("SELECT id, days, previous_expire_at, new_expire_at, actor, note, created_at FROM renewal_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 100").all(id));
+});
+
+api.get("/support/tickets", requirePermission("users"), (_req, res) => {
+  const tickets = db.prepare(`SELECT t.*, u.email AS user_email,
+    (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id=t.id) AS message_count
+    FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id
+    ORDER BY CASE t.status WHEN 'open' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, t.updated_at DESC LIMIT 300`).all();
+  res.json({ tickets });
+});
+
+api.get("/support/tickets/:id", requirePermission("users"), (req, res) => {
+  const id = Number(req.params.id);
+  const ticket = db.prepare("SELECT t.*, u.email AS user_email FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=?").get(id);
+  if (!ticket) { res.status(404).json({ error: "not found" }); return; }
+  const messages = db.prepare("SELECT * FROM support_messages WHERE ticket_id=? ORDER BY created_at ASC").all(id);
+  res.json({ ticket, messages });
+});
+
+api.post("/support/tickets/:id/reply", requirePermission("users"), async (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  const body = z.object({ message: z.string().trim().min(1).max(4000) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid message" }); return; }
+  const ticket = db.prepare("SELECT * FROM support_tickets WHERE id=?").get(id) as { id:number; telegram_id:string; status:string } | undefined;
+  if (!ticket) { res.status(404).json({ error: "not found" }); return; }
+  const now = Date.now();
+  db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'admin', ?, ?, ?)")
+    .run(id, req.admin!.username, body.data.message, now);
+  db.prepare("UPDATE support_tickets SET status='pending', updated_at=? WHERE id=?").run(now, id);
+  logActivity(req.admin!.username, "support_reply", `ticket #${id}`);
+  res.json({ ok: true });
+});
+
+api.patch("/support/tickets/:id", requirePermission("users"), (req, res) => {
+  const body = z.object({ status: z.enum(["open", "pending", "closed"]), priority: z.enum(["low", "normal", "high"]).optional() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid ticket state" }); return; }
+  const info = db.prepare("UPDATE support_tickets SET status=?, priority=COALESCE(?, priority), updated_at=? WHERE id=?")
+    .run(body.data.status, body.data.priority || null, Date.now(), Number(req.params.id));
+  if (Number(info.changes) === 0) { res.status(404).json({ error: "not found" }); return; }
+  res.json({ ok: true });
+});
+
+api.post("/bot/broadcast", requirePermission("bot"), async (req: AuthedRequest, res) => {
+  const body = z.object({ message: z.string().trim().min(1).max(4000) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "message required (max 4000)" }); return; }
+  try {
+    const result = await sendBroadcastToLinkedUsers(body.data.message);
+    logActivity(req.admin!.username, "telegram_broadcast", `sent=${result.sent}, failed=${result.failed}`);
+    res.json({ ok: true, ...result });
+  } catch (e) { res.status(400).json({ error: (e as Error).message }); }
+});
+
+api.get("/notifications/expiry-preview", requirePermission("users"), (_req, res) => {
+  const now = Date.now();
+  const rows = db.prepare("SELECT id, email, telegram_id, expire_at, enabled FROM users WHERE expire_at IS NOT NULL AND expire_at > ? AND expire_at <= ? ORDER BY expire_at ASC")
+    .all(now, now + 7 * 86_400_000);
+  res.json({ users: rows });
 });
 
 void db;
