@@ -16,9 +16,6 @@ const protocolAccent: Record<string, string> = {
   wireguard: "#35d6a1",
   socks: "#168cff",
   http: "#8b35ff",
-  wireguard: "#35d6a1",
-  socks: "#168cff",
-  http: "#8b35ff",
 };
 
 export default function InboundsPage() {
