@@ -22,7 +22,7 @@ import { seedDefaultRouting } from "./routing.js";
 import { api } from "./routes.js";
 import { sub, setSubStaticRoot } from "./sub.js";
 import { attachTunnel, tryTunnelHttp } from "./tunnel.js";
-import { startXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
+import { startXray, restartXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
 import { applyTrafficReset } from "./users.js";
 import { rateLimit } from "./ratelimit.js";
 import { sendDailyBackup, startTelegramBot, notifyExpiringUsers } from "./bot.js";
