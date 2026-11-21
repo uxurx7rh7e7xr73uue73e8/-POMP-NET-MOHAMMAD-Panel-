@@ -13,6 +13,9 @@ const protocolAccent: Record<string, string> = {
   vless: "#8b35ff",
   vmess: "#168cff",
   trojan: "#b18cff",
+  wireguard: "#35d6a1",
+  socks: "#168cff",
+  http: "#8b35ff",
 };
 
 export default function InboundsPage() {
@@ -81,7 +84,7 @@ export default function InboundsPage() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ tag, protocol, transport, expireDays });
+    create.mutate({ tag, protocol, transport: protocol === "wireguard" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays });
   };
 
   const enabledCount = inbounds.filter((i) => i.enabled && (!i.expires_at || i.expires_at > Date.now())).length;
@@ -122,13 +125,17 @@ export default function InboundsPage() {
               <select value={protocol} onChange={(e) => setProtocol(e.target.value as Protocol)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
+                <option value="wireguard">WireGuard · UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
               ترنسپورت
-              <select value={transport} onChange={(e) => setTransport(e.target.value as Transport)}
-                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
+              <select value={protocol === "wireguard" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport}
+                disabled={protocol === "wireguard" || protocol === "socks" || protocol === "http"}
+                onChange={(e) => setTransport(e.target.value as Transport)}
+                className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text disabled:opacity-60">
                 <option value="xhttp">XHTTP</option><option value="ws">WebSocket</option><option value="httpupgrade">HTTP Upgrade</option>
+                <option value="udp">UDP · WireGuard</option><option value="tcp">TCP · Proxy</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
@@ -144,7 +151,7 @@ export default function InboundsPage() {
             </div>
           </form>
           <p className="text-[11px] leading-6 text-text/50">
-            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. «Game Route» یک ورودی VLESS/XHTTP با مسیر خروجی Direct فعلی است؛ کاهش پینگ تضمین‌شدنی نیست و به موقعیت سرور، مسیر اپراتور و شبکه کاربر بستگی دارد.
+            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. WireGuard یک Inbound واقعی UDP در Xray است و برای دسترسی بیرونی باید UDP آن پورت در فایروال و میزبان باز باشد. SOCKS5 و HTTP با نام کاربری و رمز عبور مستقل کاربر محافظت می‌شوند. پروفایل Game Route پینگ پایین را تضمین نمی‌کند.
           </p>
         </CardContent>
       </Card>
