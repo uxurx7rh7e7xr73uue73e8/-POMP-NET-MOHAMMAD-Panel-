@@ -1,5 +1,5 @@
-export type Protocol = "vless" | "vmess" | "trojan";
-export type Transport = "ws" | "xhttp" | "httpupgrade";
+export type Protocol = "vless" | "vmess" | "trojan" | "wireguard" | "socks" | "http";
+export type Transport = "ws" | "xhttp" | "httpupgrade" | "udp" | "tcp";
 export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
 
 export type Permission =
