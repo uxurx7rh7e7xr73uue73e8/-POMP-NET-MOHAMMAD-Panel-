@@ -13,12 +13,12 @@ This guide describes the actual network boundary of the current implementation. 
 
 ## Railway networking limits
 
-Railway public networking supports HTTP/HTTPS and WebSockets, and offers one public TCP Proxy per service instance. Its public TCP Proxy is TCP-only; it does not expose UDP.
+Railway public networking supports HTTP/HTTPS and WebSockets, and offers one public TCP Proxy per service instance. Its public TCP Proxy is TCP-only; it does not expose UDP. The app can publish one selected SOCKS5 or HTTP inbound through that TCP Proxy when the exact internal/public endpoint is configured.
 
 Therefore:
 
 - Native public WireGuard is **not supported** by this single-service Railway deployment. When Railway runtime environment variables are detected, the app now omits WireGuard from the generated Xray runtime config and client subscriptions. Existing inbound records and peer data are retained; they are not deleted. A UDP listener inside the container or a successful Docker smoke test does not make it reachable from a phone on the public internet.
-- SOCKS5 and raw HTTP proxy listeners are TCP services, not HTTP websites. They need a dedicated TCP Proxy. Railway allows only one TCP Proxy per service instance. Until a TCP Proxy is explicitly provisioned and mapped, the app now omits SOCKS5/HTTP inbounds from the generated Xray runtime config and client exports on Railway. Existing inbound records and user assignments are retained.
+- SOCKS5 and raw HTTP proxy listeners are TCP services, not HTTP websites. Railway allows only one TCP Proxy per service instance, so only one of the panel's raw TCP inbounds can be published at a time. Existing SOCKS5/HTTP records are retained, but they are omitted from Xray runtime config and subscriptions unless the selected inbound's internal port matches the configured TCP Proxy mapping. After creating the TCP Proxy in Railway, set `RAILWAY_TCP_PROXY_INTERNAL_PORT` to its internal port, `PUBLIC_TCP_PROXY_HOST` to the generated proxy hostname, and `PUBLIC_TCP_PROXY_PORT` to its generated public port. The app then emits the correct public endpoint only for the matching inbound.
 - Railway private networking can carry UDP between Railway services, but it is not a public UDP endpoint for end-user VPN clients.
 - Do not use Docker `EXPOSE` as proof of public reachability. It is image metadata only.
 
@@ -33,7 +33,7 @@ Official references:
 2. In Railway, create a project and deploy this GitHub repository using the Dockerfile builder.
 3. In the service settings, generate an HTTPS domain for the web service and expose container port `8080`.
 4. Add a Volume mounted at `/data`.
-5. Set `NODE_ENV=production`, `PORT=8080`, and a long random `JWT_SECRET`. Keep `SIDERAIL_DATA_DIR=/data`.
+5. Set `NODE_ENV=production`, `PORT=8080`, and a long random `JWT_SECRET`. Keep `SIDERAIL_DATA_DIR=/data`. Do not set TCP Proxy variables until the TCP Proxy actually exists and its port mapping is confirmed.
 6. Deploy and wait for `/healthz` to return HTTP 200 with `ok: true` and `xray: true`.
 7. Open the generated domain and complete the one-time Owner setup. Use a unique password; do not reuse a password from another service.
 8. Verify that users, settings and login survive a redeploy before adding real customers.
@@ -63,6 +63,6 @@ Important: the CI container does not run with Railway runtime environment variab
 - [ ] Verify traffic counters increase during real traffic.
 - [ ] Verify expired users/inbounds stop receiving usable subscription entries.
 - [ ] Export a backup and test restore in a non-production environment.
-- [ ] Do not advertise WireGuard, SOCKS5 or raw HTTP proxy as public Railway features unless their actual public network path has been provisioned and tested.
+- [ ] Do not advertise WireGuard as a public Railway feature. Advertise only the one SOCKS5 or HTTP inbound whose TCP Proxy mapping and real client connection have been verified.
 
 A green CI run is necessary, but it is not a substitute for a live Railway deployment and real-client connection tests.
