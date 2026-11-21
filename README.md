@@ -45,7 +45,7 @@ BEYOND CONNECTION. BEYOND LIMITS.
 <br/>
 
 > [!TIP]
-> **Fork → Deploy on Railway → Expose port `8080` → Open the panel.** Four steps, zero config, live in minutes.
+> **Deploy on Railway → expose HTTP port `8080` → attach a persistent Volume at `/data` → open the panel.** See [the full Railway deployment guide](docs/RAILWAY-DEPLOYMENT.md) for network limits and production checks.
 
 <br/>
 
@@ -73,7 +73,7 @@ A loud **neobrutalist** UI — thick borders, hard shadows, animated icons — t
 
 **Deploy and forget**
 
-Xray-core pulls itself on first boot, the session secret is generated for you, and the DB just works. **Zero environment variables required.**
+Xray-core pulls itself on first boot and SQLite stores panel data. **A persistent Railway Volume at `/data` and a stable `JWT_SECRET` are required for production.**
 
 </td>
 <td width="50%" valign="top">
@@ -136,9 +136,9 @@ The Owner adds Admins with scoped page access and personal data quotas — and e
 **4. Expose port `8080`** — open **Settings → Networking → Generate Domain**, and set the port to **`8080`**.
 
 > [!IMPORTANT]
-> SideRail listens on port **`8080`** — this is the **only** port you expose. The ports `10085` and `20000–20004` are Xray's internal ports bound to `127.0.0.1`; they are private and must **not** be exposed.
+> The panel listens on **`8080`**. Xray listeners are internal to the container and are routed through the HTTP/WebSocket edge handlers. Do not expose each Xray inbound port as a separate HTTP domain.
 
-**5. Add a volume (optional)** — attach a **Volume** at **`/data`** so users, admins and settings survive redeploys.
+**5. Add a persistent volume (required)** — attach a Railway **Volume** at **`/data`** so users, admins, settings and the generated session secret survive redeploys.
 
 **6. Open your panel** — visit the generated `*.up.railway.app` domain, land on the **Setup** page, and create your **Owner** account.
 
@@ -152,7 +152,7 @@ The Owner adds Admins with scoped page access and personal data quotas — and e
 |:--|:--|:--|
 | `PORT` | `8080` | HTTP port. **Expose this one on Railway.** |
 | `JWT_SECRET` | *auto* | Signs admin session cookies. Auto-generated and persisted if unset. |
-| `XRAY_VERSION` | `v26.9.9` | Xray-core release fetched on first boot. |
+| `XRAY_VERSION` | `v26.11.9` | Xray-core release fetched on first boot. |
 | `SIDERAIL_DATA_DIR` | `/data` | Persistent data directory (mount a volume here). |
 | `PUBLIC_DOMAIN` | *auto* | Override for a custom domain. Falls back to `RAILWAY_PUBLIC_DOMAIN`. |
 | `XRAY_API_PORT` | `10085` | Internal Xray stats API port. |
@@ -182,7 +182,7 @@ apps/
       └─ routes.ts        Authenticated REST API
 ```
 
-**How traffic flows** — TLS is terminated at the Railway edge; all client links use `security=tls` on port `443`. The Node process routes **WebSocket/HTTPUpgrade** to Xray via raw `net.Socket`, and **XHTTP** through an HTTP proxy. Only `ws`, `httpupgrade` and `xhttp` are supported — raw TCP, gRPC, WireGuard and Hysteria are intentionally left out because they don't survive the edge.
+**How traffic flows** — TLS is terminated at the Railway edge; all client links use `security=tls` on port `443`. The Node process routes **WebSocket/HTTPUpgrade** to Xray via raw `net.Socket`, and **XHTTP** through an HTTP proxy. Railway's public edge supports HTTP/HTTPS and WebSockets. Native public UDP (including WireGuard) is not available, and only one public TCP Proxy is allowed per service instance. SOCKS5/raw HTTP proxy listeners therefore must not be advertised as publicly reachable unless a dedicated TCP proxy has actually been provisioned and tested. See [docs/RAILWAY-DEPLOYMENT.md](docs/RAILWAY-DEPLOYMENT.md).
 
 <br/>
 
