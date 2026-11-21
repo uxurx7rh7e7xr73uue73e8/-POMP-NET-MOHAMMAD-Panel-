@@ -108,7 +108,7 @@ export function buildUserLinks(
 ): { tag: string; protocol: string; transport: string; link: string }[] {
   const address = resolveAddress(host);
   return inbounds
-    .filter((ib) => ib.enabled && user.inbound_ids.includes(ib.id))
+    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
     .map((inbound) => ({
       tag: inbound.tag,
       protocol: inbound.protocol,
