@@ -33,7 +33,7 @@ function usagePayload(token: string, host: string) {
   if (!user) return null;
   markSubFirstSeen(user.id);
   const row = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as unknown as UserRecord;
-  if (isSubExpired(row)) return { expired: true as const };
+  if (isSubExpired(row) || !isUserActive(user)) return { expired: true as const };
   const inbounds = listInbounds();
   const links = buildUserLinks(host, user, inbounds);
   return {
@@ -86,7 +86,7 @@ function rawLinks(token: string, host: string) {
   if (!user) return null;
   markSubFirstSeen(user.id);
   const row = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as unknown as UserRecord;
-  if (isSubExpired(row)) return { expired: true as const };
+  if (isSubExpired(row) || !isUserActive(user)) return { expired: true as const };
   const inbounds = listInbounds();
   return { expired: false as const, user, inbounds };
 }
