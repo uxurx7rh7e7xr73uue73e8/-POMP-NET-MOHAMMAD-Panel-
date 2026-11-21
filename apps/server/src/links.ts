@@ -11,6 +11,7 @@
 import { getSetting } from "./db.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
 import { isUserActive } from "./users.js";
+import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
 
 interface LinkContext {
   host: string;
@@ -110,6 +111,29 @@ function trojanLink(ctx: LinkContext): string {
   )}`;
 }
 
+function wireGuardLink(ctx: LinkContext): string {
+  const { user, inbound, address } = ctx;
+  const peer = ensureWireGuardPeer(user);
+  const server = ensureWireGuardServerKeys();
+  const params = qs({
+    address: `${peer.address}/32`,
+    publickey: server.publicKey,
+    presharedkey: peer.preshared_key,
+    mtu: "1420",
+    dns: "1.1.1.1",
+    reserved: "0,0,0",
+  });
+  const label = inboundDisplayLabel(inbound, user, ctx.allInbounds);
+  return `wireguard://${peer.private_key}@${address}:${inbound.port}?${params}#${encodeURIComponent(label)}`;
+}
+
+function proxyLink(ctx: LinkContext): string {
+  const { user, inbound, address } = ctx;
+  const scheme = inbound.protocol === "socks" ? "socks" : "http";
+  const label = encodeURIComponent(inboundDisplayLabel(inbound, user, ctx.allInbounds));
+  return `${scheme}://${encodeURIComponent(user.email)}:${encodeURIComponent(user.password)}@${address}:${inbound.port}#${label}`;
+}
+
 function vmessLink(ctx: LinkContext): string {
   const { user, inbound, host, address } = ctx;
   const isXhttp = inbound.transport === "xhttp";
@@ -141,6 +165,11 @@ export function buildLink(ctx: LinkContext): string {
       return trojanLink(ctx);
     case "vmess":
       return vmessLink(ctx);
+    case "wireguard":
+      return wireGuardLink(ctx);
+    case "socks":
+    case "http":
+      return proxyLink(ctx);
   }
 }
 
