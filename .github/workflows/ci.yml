@@ -81,7 +81,7 @@ jobs:
           node -e 'const x=require("/tmp/pompnet-me.json"); if (!x.admin || x.admin.role !== "owner") process.exit(1)'
           docker exec pompnet-ci node -e '
             const net = require("node:net");
-            const ports = [20000, 20001, 20002, 20003, 20004];
+            const ports = [20000, 20001, 20002, 20003, 20004, 20012, 20013];
             Promise.all(ports.map(port => new Promise((resolve, reject) => {
               const socket = net.createConnection({host:"127.0.0.1", port});
               socket.setTimeout(4000);
