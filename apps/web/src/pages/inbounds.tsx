@@ -16,6 +16,9 @@ const protocolAccent: Record<string, string> = {
   wireguard: "#35d6a1",
   socks: "#168cff",
   http: "#8b35ff",
+  wireguard: "#35d6a1",
+  socks: "#168cff",
+  http: "#8b35ff",
 };
 
 export default function InboundsPage() {
@@ -125,6 +128,7 @@ export default function InboundsPage() {
               <select value={protocol} onChange={(e) => setProtocol(e.target.value as Protocol)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
+                <option value="wireguard">WireGuard · UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
                 <option value="wireguard">WireGuard · UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
               </select>
             </label>
