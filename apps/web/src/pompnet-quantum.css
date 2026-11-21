@@ -1,0 +1,69 @@
+/* POMP NET MOHAMMAD — QUANTUM NEXUS visual system
+ * Premium dark interface layer. Keeps existing application components and API behavior intact.
+ */
+:root {
+  color-scheme: dark;
+  --pn-bg: #070610;
+  --pn-panel: #100d20;
+  --pn-panel-raised: #17122b;
+  --pn-violet: #8b35ff;
+  --pn-blue: #168cff;
+  --pn-line: rgba(160, 120, 255, .19);
+  --pn-glow: 0 12px 42px rgba(0, 0, 0, .28), 0 0 28px rgba(139, 53, 255, .09);
+}
+
+html { background: var(--pn-bg); }
+body {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 12% 4%, rgba(112, 45, 210, .17), transparent 34rem),
+    radial-gradient(ellipse at 94% 18%, rgba(22, 140, 255, .11), transparent 31rem),
+    linear-gradient(155deg, #080611 0%, #090715 48%, #060711 100%);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .2;
+  background-image: linear-gradient(rgba(160,130,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(160,130,255,.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+::selection { color: #fff; background: rgba(139, 53, 255, .48); }
+:focus-visible {
+  outline: 2px solid rgba(22, 140, 255, .9);
+  outline-offset: 3px;
+}
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button, a { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease, background-color .2s ease; }
+button:active { transform: translateY(1px); }
+
+/* Elevated surfaces without excessive transparency. */
+[class*="bg-card"], [class*="bg-background"] {
+  backdrop-filter: blur(14px);
+}
+[class*="border-border"] { border-color: var(--pn-line) !important; }
+[class*="shadow-neo"], .neo-shadow { box-shadow: var(--pn-glow); }
+
+/* Consistent premium scrollbars on desktop and mobile webviews. */
+* { scrollbar-color: rgba(139, 53, 255, .55) rgba(12, 10, 22, .8); scrollbar-width: thin; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(8, 7, 17, .7); }
+::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(8, 7, 17, .7);
+  border-radius: 99px;
+  background: linear-gradient(180deg, var(--pn-violet), var(--pn-blue));
+}
+
+/* Motion is subtle and automatically disabled for accessibility preferences. */
+@media (prefers-reduced-motion: no-preference) {
+  #root { animation: pn-enter .42s cubic-bezier(.2,.75,.25,1) both; }
+  @keyframes pn-enter { from { opacity: .78; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
