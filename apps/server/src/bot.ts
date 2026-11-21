@@ -178,6 +178,46 @@ export async function testBot(
   return anyOk ? { ok: true } : { ok: false, error: lastError };
 }
 
+export async function sendBroadcastToLinkedUsers(message: string): Promise<{ sent: number; failed: number; skipped: number }> {
+  const cfg = getBotConfig();
+  if (!cfg.enabled || !cfg.token) throw new Error("ربات فعال نیست یا توکن تنظیم نشده است");
+  const recipients = [...new Set(listUsers().map((u) => u.telegram_id).filter(Boolean))];
+  let sent = 0, failed = 0;
+  for (const chatId of recipients) {
+    const result = await apiCall(cfg.token, "sendMessage", {
+      chat_id: chatId, text: message, parse_mode: "HTML", disable_web_page_preview: true,
+    });
+    if (result.ok) sent++;
+    else failed++;
+    await sleep(40);
+  }
+  return { sent, failed, skipped: 0 };
+}
+
+export async function notifyExpiringUsers(): Promise<{ sent: number; failed: number }> {
+  const cfg = getBotConfig();
+  if (!cfg.enabled || !cfg.token) return { sent: 0, failed: 0 };
+  const now = Date.now();
+  const users = listUsers().filter((u) =>
+    Boolean(u.telegram_id) && Boolean(u.enabled) && u.expire_at !== null &&
+    u.expire_at > now && u.expire_at - now <= 72 * 60 * 60 * 1000
+  );
+  let sent = 0, failed = 0;
+  for (const user of users) {
+    const kind = user.expire_at! - now <= 24 * 60 * 60 * 1000 ? "expiry_24h" : "expiry_72h";
+    try {
+      const result = await apiCall(cfg.token, "sendMessage", {
+        chat_id: user.telegram_id,
+        text: `⚠️ <b>یادآوری انقضای اشتراک POMP NET</b>\\nاشتراک <code>${escapeHtml(user.email)}</code> به‌زودی منقضی می‌شود.\\nبرای تمدید با پشتیبانی تماس بگیرید.`,
+        parse_mode: "HTML",
+      });
+      if (result.ok) sent++; else failed++;
+    } catch { failed++; }
+    await sleep(40);
+  }
+  return { sent, failed };
+}
+
 export async function sendDailyBackup(): Promise<void> {
   const cfg = getBotConfig();
   if (!cfg.enabled || !cfg.token || cfg.chatIds.length === 0 || !cfg.dailyBackup) return;
