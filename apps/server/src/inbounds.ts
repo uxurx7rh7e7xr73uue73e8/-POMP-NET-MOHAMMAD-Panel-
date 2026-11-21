@@ -104,14 +104,16 @@ export function createInbound(input: CreateInboundInput): Inbound {
   let port = config.inboundBasePort;
   while (used.has(port) && port < config.inboundBasePort + 10000) port++;
   if (used.has(port)) throw new Error("No free inbound port in configured range");
+  const transport: Transport = input.protocol === "wireguard" ? "udp"
+    : input.protocol === "socks" || input.protocol === "http" ? "tcp" : input.transport;
   const path = input.protocol === "wireguard" || input.protocol === "socks" || input.protocol === "http"
     ? ""
-    : `/pompnet/${input.transport}-${nanoid(10)}`;
+    : `/pompnet/${transport}-${nanoid(10)}`;
   const now = Date.now();
   const expiresAt = input.expireDays && input.expireDays > 0 ? now + input.expireDays * 86_400_000 : null;
   const info = db.prepare(
     "INSERT INTO inbounds (tag, protocol, transport, port, path, host, enabled, created_at, expires_at) VALUES (?, ?, ?, ?, ?, '', 1, ?, ?)",
-  ).run(tag, input.protocol, input.transport, port, path, now, expiresAt);
+  ).run(tag, input.protocol, transport, port, path, now, expiresAt);
   return getInbound(Number(info.lastInsertRowid))!;
 }
 
