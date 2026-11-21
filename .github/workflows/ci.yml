@@ -29,6 +29,25 @@ jobs:
         run: npm run typecheck
       - name: Build production bundles
         run: npm run build
+      - name: Verify Railway capability and TCP proxy mapping logic
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from "node:assert/strict";
+          process.env.RAILWAY_PROJECT_ID = "ci-project";
+          const { isPubliclyReachableInbound, getPublicTcpProxyEndpoint } =
+            await import("./apps/server/dist/railway-capabilities.js");
+          const inbound = (protocol, port) => ({ id: port, tag: protocol, protocol, transport: protocol === "wireguard" ? "udp" : "tcp", port, path: "", host: "", enabled: 1, created_at: Date.now(), expires_at: null });
+          assert.equal(isPubliclyReachableInbound(inbound("vless", 20000)), true);
+          assert.equal(isPubliclyReachableInbound(inbound("wireguard", 20011)), false);
+          assert.equal(isPubliclyReachableInbound(inbound("socks", 20012)), false);
+          process.env.RAILWAY_TCP_PROXY_INTERNAL_PORT = "20012";
+          process.env.PUBLIC_TCP_PROXY_HOST = "ci.proxy.rlwy.net";
+          process.env.PUBLIC_TCP_PROXY_PORT = "12345";
+          assert.equal(isPubliclyReachableInbound(inbound("socks", 20012)), true);
+          assert.deepEqual(getPublicTcpProxyEndpoint(inbound("socks", 20012)), { host: "ci.proxy.rlwy.net", port: 12345 });
+          assert.equal(isPubliclyReachableInbound(inbound("http", 20013)), false);
+          console.log("Railway protocol gating and exact TCP proxy mapping passed.");
+          NODE
 
   docker-runtime-smoke:
     name: Docker startup, API and Xray runtime smoke test
@@ -120,3 +139,48 @@ jobs:
           grep -q "^socks://" /tmp/pompnet-sub.txt
           grep -q "^http://" /tmp/pompnet-sub.txt
           echo "Docker image, API/auth, Xray core, TCP/UDP inbound listeners and WireGuard/SOCKS/HTTP subscription links passed."
+      - name: Verify Railway-mode subscription filtering and TCP proxy URI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker logs pompnet-railway-ci || true
+            docker rm -f pompnet-railway-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker run -d --name pompnet-railway-ci -p 18081:8080 \
+            -e NODE_ENV=production \
+            -e PORT=8080 \
+            -e SIDERAIL_DATA_DIR=/data \
+            -e XRAY_VERSION=v26.11.9 \
+            -e RAILWAY_PROJECT_ID=ci-project \
+            -e RAILWAY_TCP_PROXY_INTERNAL_PORT=20012 \
+            -e PUBLIC_TCP_PROXY_HOST=ci.proxy.rlwy.net \
+            -e PUBLIC_TCP_PROXY_PORT=12345 \
+            pompnet-quantum-nexus:ci
+          ready=0
+          for attempt in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:18081/healthz -o /tmp/pompnet-railway-health.json; then
+              if node -e 'const x=require("/tmp/pompnet-railway-health.json"); process.exit(x.ok && x.xray ? 0 : 1)'; then ready=1; break; fi
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then cat /tmp/pompnet-railway-health.json 2>/dev/null || true; exit 1; fi
+          curl -fsS -H "Content-Type: application/json" \
+            -d '{"username":"ci-owner","password":"TempPass123!"}' \
+            http://127.0.0.1:18081/api/setup >/dev/null
+          token=$(docker exec pompnet-railway-ci node --input-type=module -e '
+            import { DatabaseSync } from "node:sqlite";
+            const db = new DatabaseSync("/data/siderail.db");
+            const row = db.prepare("SELECT sub_token FROM users WHERE email = ?").get("sample-user");
+            if (!row) process.exit(1);
+            process.stdout.write(row.sub_token);
+            db.close();
+          ')
+          curl -fsS "http://127.0.0.1:18081/sub/$token?raw=1" | base64 -d > /tmp/pompnet-railway-sub.txt
+          grep -q "^vless://" /tmp/pompnet-railway-sub.txt
+          grep -q "^socks://.*@ci.proxy.rlwy.net:12345" /tmp/pompnet-railway-sub.txt
+          ! grep -q "^wireguard://" /tmp/pompnet-railway-sub.txt
+          ! grep -q "^http://" /tmp/pompnet-railway-sub.txt
+          curl -fsS http://127.0.0.1:18081/api/capabilities | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.railway||!x.tcpProxy.configured||x.wireguardPublicUdp)process.exit(1)})'
+          echo "Railway-mode Xray, subscription filtering and mapped SOCKS5 endpoint passed."
