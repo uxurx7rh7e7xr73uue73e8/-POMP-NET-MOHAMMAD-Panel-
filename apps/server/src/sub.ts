@@ -120,6 +120,7 @@ sub.get("/:token/singbox", (req, res) => {
     return;
   }
   res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Profile-Title", Buffer.from(subscriptionProfileTitle(data.user, data.inbounds)).toString("base64"));
   res.send(buildSingboxConfig(host, data.user, data.inbounds));
 });
 
