@@ -101,7 +101,7 @@ The Owner adds Admins with scoped page access and personal data quotas — and e
 </tr>
 <tr>
 <td valign="top"><b>Inbounds</b></td>
-<td>Five HTTP inbounds auto-seeded on first boot. Enable or disable only, each with a unique port and <code>/SideRail/...</code> path.</td>
+<td>HTTP-edge and internal protocol inbounds are seeded on first boot; see the Railway deployment guide for public-network compatibility. Enable or disable only, each with a unique port and <code>/SideRail/...</code> path.</td>
 </tr>
 <tr>
 <td valign="top"><b>Activity Log</b></td>
@@ -146,7 +146,7 @@ The Owner adds Admins with scoped page access and personal data quotas — and e
 
 <img src=".github/sections/env.svg" width="380" alt="Environment variables" />
 
-**All optional.**
+**Production note:** mount a persistent Railway Volume at `/data` and set a stable `JWT_SECRET`. See [Railway deployment and limitations](docs/RAILWAY-DEPLOYMENT.md).
 
 | Variable | Default | Description |
 |:--|:--|:--|
