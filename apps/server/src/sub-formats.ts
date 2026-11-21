@@ -106,7 +106,7 @@ function singboxOutbound(ctx: Ctx): Record<string, unknown> | null {
 
 export function buildSingboxConfig(host: string, user: UserWithInbounds, inbounds: Inbound[]): string {
   const outbounds = inbounds
-    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
+    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id) && isPubliclyReachableInbound(ib))
     .map((inbound) => singboxOutbound({ host, user, inbound, allInbounds: inbounds }))
     .filter((o): o is Record<string, unknown> => o !== null);
   const tags = outbounds.map((o) => o.tag as string);
