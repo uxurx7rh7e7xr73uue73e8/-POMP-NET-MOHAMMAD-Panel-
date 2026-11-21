@@ -15,6 +15,7 @@ import type { Socket } from "node:net";
 import { listEnabledInbounds } from "./inbounds.js";
 import { db } from "./db.js";
 import type { Inbound } from "./types.js";
+import { isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 const xhttpProxy = httpProxy.createProxyServer({ ws: false, xfwd: true });
 xhttpProxy.on("error", () => {});
@@ -43,7 +44,7 @@ function clientIp(req: IncomingMessage): string {
 function matchInbound(url: string | undefined): Inbound | null {
   if (!url) return null;
   const pathname = url.split("?")[0];
-  const inbounds = listEnabledInbounds();
+  const inbounds = listEnabledInbounds().filter(isPubliclyReachableInbound);
   for (const ib of inbounds) {
     if (pathname === ib.path || pathname.startsWith(ib.path + "/")) return ib;
   }
