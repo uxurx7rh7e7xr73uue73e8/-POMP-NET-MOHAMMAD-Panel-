@@ -71,6 +71,11 @@ export default function InboundsPage() {
   });
 
   const createGamePreset = () => {
+    const existing = inbounds.find((ib) => ib.tag === "POMP-GAME-ROUTE");
+    if (existing) {
+      toast.push("success", `پروفایل Game Route آماده است · پورت ${existing.port}`);
+      return;
+    }
     create.mutate({ tag: "POMP-GAME-ROUTE", protocol: "vless", transport: "xhttp", expireDays: 0 });
   };
 
