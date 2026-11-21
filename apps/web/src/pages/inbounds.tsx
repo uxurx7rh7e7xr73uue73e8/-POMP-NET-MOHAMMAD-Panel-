@@ -169,7 +169,7 @@ export default function InboundsPage() {
             </div>
           </form>
           <p className="text-[11px] leading-6 text-text/50">
-            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. WireGuard یک Inbound واقعی UDP در Xray است و برای دسترسی بیرونی باید UDP آن پورت در فایروال و میزبان باز باشد. SOCKS5 و HTTP با نام کاربری و رمز عبور مستقل کاربر محافظت می‌شوند. پروفایل Game Route پینگ پایین را تضمین نمی‌کند.
+            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. روی Railway، WireGuard عمومی قابل‌استفاده نیست. SOCKS5 یا HTTP فقط وقتی لینک عمومی می‌گیرد که همان پورت داخلی به TCP Proxy متصل و سه متغیر RAILWAY_TCP_PROXY_INTERNAL_PORT، PUBLIC_TCP_PROXY_HOST و PUBLIC_TCP_PROXY_PORT تنظیم شده باشند. پروفایل Game Route پینگ پایین را تضمین نمی‌کند.
           </p>
         </CardContent>
       </Card>
@@ -205,8 +205,8 @@ export default function InboundsPage() {
                 <div className="mt-3 grid grid-cols-3 gap-1.5">
                   <Badge variant="neutral" className="justify-center truncate text-[10px] uppercase">{ib.protocol}</Badge>
                   <Badge variant="default" className="justify-center truncate text-[10px] uppercase">{ib.transport}</Badge>
-                  <Badge variant={expired ? "danger" : ib.enabled ? "success" : "neutral"} className="justify-center gap-1 text-[10px]">
-                    <Lock className="h-3 w-3 shrink-0" /> {expired ? "منقضی" : ib.enabled ? "فعال" : "خاموش"}
+                  <Badge variant={!reachable ? "danger" : expired ? "danger" : ib.enabled ? "success" : "neutral"} className="justify-center gap-1 text-[10px]">
+                    <Lock className="h-3 w-3 shrink-0" /> {!reachable ? "غیرقابل‌انتشار در Railway" : expired ? "منقضی" : ib.enabled ? "فعال" : "خاموش"}
                   </Badge>
                 </div>
                 <div className="mt-3 space-y-1.5 border-t border-border/30 pt-2.5 text-[11px] text-text/60">
