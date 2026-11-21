@@ -2,6 +2,19 @@ export type Protocol = "vless" | "vmess" | "trojan" | "wireguard" | "socks" | "h
 export type Transport = "ws" | "xhttp" | "httpupgrade" | "udp" | "tcp";
 export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
 
+export interface RuntimeCapabilities {
+  platform: "railway" | "self-hosted";
+  railway: boolean;
+  tcpProxy: {
+    configured: boolean;
+    internalPort: number | null;
+    publicHost: string | null;
+    publicPort: number | null;
+    note: string;
+  };
+  wireguardPublicUdp: boolean;
+}
+
 export type Permission =
   | "dashboard"
   | "users"
