@@ -17,8 +17,8 @@ Railway public networking supports HTTP/HTTPS and WebSockets, and offers one pub
 
 Therefore:
 
-- Native public WireGuard is **not supported** by this single-service Railway deployment. A UDP listener inside the container or a successful Docker smoke test does not make it reachable from a phone on the public internet.
-- SOCKS5 and raw HTTP proxy listeners are TCP services, not HTTP websites. They need a dedicated TCP Proxy. Railway allows only one TCP Proxy per service instance, so do not expose several separate SOCKS/HTTP inbound ports from this one service or generate public links for ports that are not actually mapped.
+- Native public WireGuard is **not supported** by this single-service Railway deployment. When Railway runtime environment variables are detected, the app now omits WireGuard from the generated Xray runtime config and client subscriptions. Existing inbound records and peer data are retained; they are not deleted. A UDP listener inside the container or a successful Docker smoke test does not make it reachable from a phone on the public internet.
+- SOCKS5 and raw HTTP proxy listeners are TCP services, not HTTP websites. They need a dedicated TCP Proxy. Railway allows only one TCP Proxy per service instance. Until a TCP Proxy is explicitly provisioned and mapped, the app now omits SOCKS5/HTTP inbounds from the generated Xray runtime config and client exports on Railway. Existing inbound records and user assignments are retained.
 - Railway private networking can carry UDP between Railway services, but it is not a public UDP endpoint for end-user VPN clients.
 - Do not use Docker `EXPOSE` as proof of public reachability. It is image metadata only.
 
@@ -50,7 +50,7 @@ The latest successful GitHub Actions run on this branch (commit `fdcbc6347f11fa4
 - Local Xray TCP listeners and a local UDP socket-table check
 - Subscription output containing WireGuard/SOCKS/HTTP URI schemes
 
-Important: the UDP socket-table test only proves that a UDP socket exists inside the CI container. It does **not** prove Railway public UDP reachability. Likewise, checking generated URI schemes does not prove a phone can connect to them. End-to-end tests from a real client and from the deployed Railway domain are still required.
+Important: the CI container does not run with Railway runtime environment variables, so its local smoke tests exercise the non-Railway code path. The UDP socket-table test only proves that a UDP socket exists inside the CI container. It does **not** prove Railway public UDP reachability. Likewise, checking generated URI schemes does not prove a phone can connect to them. End-to-end tests from a real client and from the deployed Railway domain are still required.
 
 ## Go-live checklist
 
