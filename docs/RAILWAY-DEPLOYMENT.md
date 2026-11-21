@@ -37,7 +37,7 @@ Official references:
 6. Deploy and wait for `/healthz` to return HTTP 200 with `ok: true` and `xray: true`.
 7. Open the generated domain and complete the one-time Owner setup. Use a unique password; do not reuse a password from another service.
 8. (Optional) To publish one SOCKS5 or HTTP inbound, select its internal port, create a Railway TCP Proxy for that exact port, then set `RAILWAY_TCP_PROXY_INTERNAL_PORT`, `PUBLIC_TCP_PROXY_HOST`, and `PUBLIC_TCP_PROXY_PORT` from the Railway-generated mapping. Only that matching inbound will be included in subscriptions. Do not set these variables before the TCP Proxy exists.
-8. Verify that users, settings and login survive a redeploy before adding real customers.
+9. Verify that users, settings and login survive a redeploy before adding real customers.
 
 ## What CI proves (and does not prove)
 
