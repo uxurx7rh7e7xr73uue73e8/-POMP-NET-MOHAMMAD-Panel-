@@ -12,7 +12,7 @@ import { getSetting } from "./db.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
 import { isUserActive } from "./users.js";
 import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
-import { isPubliclyReachableInbound } from "./railway-capabilities.js";
+import { getPublicTcpProxyEndpoint, isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 interface LinkContext {
   host: string;
@@ -131,8 +131,11 @@ function wireGuardLink(ctx: LinkContext): string {
 function proxyLink(ctx: LinkContext): string {
   const { user, inbound, address } = ctx;
   const scheme = inbound.protocol === "socks" ? "socks" : "http";
+  const endpoint = getPublicTcpProxyEndpoint(inbound);
+  const proxyAddress = endpoint?.host || address;
+  const proxyPort = endpoint?.port || inbound.port;
   const label = encodeURIComponent(inboundDisplayLabel(inbound, user, ctx.allInbounds));
-  return `${scheme}://${encodeURIComponent(user.email)}:${encodeURIComponent(user.password)}@${address}:${inbound.port}#${label}`;
+  return `${scheme}://${encodeURIComponent(user.email)}:${encodeURIComponent(user.password)}@${proxyAddress}:${proxyPort}#${label}`;
 }
 
 function vmessLink(ctx: LinkContext): string {
