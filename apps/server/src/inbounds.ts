@@ -39,8 +39,8 @@ export function listInbounds(): Inbound[] {
 
 export function listEnabledInbounds(): Inbound[] {
   return db
-    .prepare("SELECT * FROM inbounds WHERE enabled = 1 ORDER BY id ASC")
-    .all() as unknown as Inbound[];
+    .prepare("SELECT * FROM inbounds WHERE enabled = 1 AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC")
+    .all(Date.now()) as unknown as Inbound[];
 }
 
 export function getInbound(id: number): Inbound | undefined {
@@ -51,4 +51,40 @@ export function getInbound(id: number): Inbound | undefined {
 
 export function setInboundEnabled(id: number, enabled: boolean): void {
   db.prepare("UPDATE inbounds SET enabled = ? WHERE id = ?").run(enabled ? 1 : 0, id);
+}
+
+
+export interface CreateInboundInput {
+  tag: string;
+  protocol: Protocol;
+  transport: Transport;
+  expireDays?: number;
+}
+
+export function createInbound(input: CreateInboundInput): Inbound {
+  const tag = input.tag.trim().replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-+/g, "-").slice(0, 48);
+  if (!tag) throw new Error("Inbound tag is required");
+  if (db.prepare("SELECT 1 FROM inbounds WHERE tag = ?").get(tag)) throw new Error("Inbound tag already exists");
+  const used = new Set((db.prepare("SELECT port FROM inbounds").all() as { port: number }[]).map((r) => r.port));
+  let port = config.inboundBasePort;
+  while (used.has(port) && port < config.inboundBasePort + 10000) port++;
+  if (used.has(port)) throw new Error("No free inbound port in configured range");
+  const path = `/pompnet/${input.transport}-${nanoid(10)}`;
+  const now = Date.now();
+  const expiresAt = input.expireDays && input.expireDays > 0 ? now + input.expireDays * 86_400_000 : null;
+  const info = db.prepare(
+    "INSERT INTO inbounds (tag, protocol, transport, port, path, host, enabled, created_at, expires_at) VALUES (?, ?, ?, ?, ?, '', 1, ?, ?)",
+  ).run(tag, input.protocol, input.transport, port, path, now, expiresAt);
+  return getInbound(Number(info.lastInsertRowid))!;
+}
+
+export function deleteInbound(id: number): boolean {
+  const users = db.prepare("SELECT COUNT(*) AS c FROM user_inbounds WHERE inbound_id = ?").get(id) as { c: number };
+  if (users.c > 0) throw new Error("Inbound is assigned to users. Unassign it before deleting.");
+  return Number(db.prepare("DELETE FROM inbounds WHERE id = ?").run(id).changes) > 0;
+}
+
+export function expireInbounds(): number {
+  const result = db.prepare("UPDATE inbounds SET enabled = 0 WHERE enabled = 1 AND expires_at IS NOT NULL AND expires_at <= ?").run(Date.now());
+  return Number(result.changes);
 }
