@@ -53,6 +53,12 @@ export function setInboundEnabled(id: number, enabled: boolean): void {
   db.prepare("UPDATE inbounds SET enabled = ? WHERE id = ?").run(enabled ? 1 : 0, id);
 }
 
+export function renewInbound(id: number, days: number): Inbound | undefined {
+  const expiresAt = days > 0 ? Date.now() + days * 86_400_000 : null;
+  db.prepare("UPDATE inbounds SET expires_at = ?, enabled = 1 WHERE id = ?").run(expiresAt, id);
+  return getInbound(id);
+}
+
 
 export interface CreateInboundInput {
   tag: string;
