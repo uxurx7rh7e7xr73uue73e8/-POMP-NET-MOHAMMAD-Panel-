@@ -1,5 +1,5 @@
 import https from "node:https";
-import { getSetting, setSetting } from "./db.js";
+import { db, getSetting, setSetting } from "./db.js";
 import { exportData } from "./backup.js";
 import { createUser, listUsers, isUserActive } from "./users.js";
 import { listInbounds, listEnabledInbounds } from "./inbounds.js";
@@ -205,13 +205,19 @@ export async function notifyExpiringUsers(): Promise<{ sent: number; failed: num
   let sent = 0, failed = 0;
   for (const user of users) {
     const kind = user.expire_at! - now <= 24 * 60 * 60 * 1000 ? "expiry_24h" : "expiry_72h";
+    const already = db.prepare("SELECT 1 FROM notification_log WHERE user_id=? AND kind=? AND target_at=?").get(user.id, kind, user.expire_at!);
+    if (already) continue;
     try {
       const result = await apiCall(cfg.token, "sendMessage", {
         chat_id: user.telegram_id,
         text: `⚠️ <b>یادآوری انقضای اشتراک POMP NET</b>\\nاشتراک <code>${escapeHtml(user.email)}</code> به‌زودی منقضی می‌شود.\\nبرای تمدید با پشتیبانی تماس بگیرید.`,
         parse_mode: "HTML",
       });
-      if (result.ok) sent++; else failed++;
+      if (result.ok) {
+        sent++;
+        db.prepare("INSERT OR IGNORE INTO notification_log (user_id, kind, target_at, sent_at) VALUES (?, ?, ?, ?)")
+          .run(user.id, kind, user.expire_at!, Date.now());
+      } else failed++;
     } catch { failed++; }
     await sleep(40);
   }
