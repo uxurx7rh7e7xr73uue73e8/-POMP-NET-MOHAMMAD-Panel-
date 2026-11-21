@@ -17,6 +17,7 @@ import { AuthProvider } from "./lib/auth";
 import { I18nProvider } from "./lib/i18n";
 import { ToastProvider } from "./components/ui/toast";
 import "./index.css";
+import "./pompnet-quantum.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
