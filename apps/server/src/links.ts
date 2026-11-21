@@ -12,6 +12,7 @@ import { getSetting } from "./db.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
 import { isUserActive } from "./users.js";
 import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
+import { isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 interface LinkContext {
   host: string;
@@ -185,7 +186,7 @@ export function buildUserLinks(
 ): { tag: string; protocol: string; transport: string; link: string }[] {
   const address = resolveAddress(host);
   return inbounds
-    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
+    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id) && isPubliclyReachableInbound(ib))
     .map((inbound) => ({
       tag: inboundDisplayLabel(inbound, user, inbounds),
       protocol: inbound.protocol,
