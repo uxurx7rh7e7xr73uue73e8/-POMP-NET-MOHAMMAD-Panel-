@@ -164,9 +164,9 @@ export default function InboundsPage() {
                     <div className="min-w-0">
                       <div className="truncate font-heading text-sm">{ib.tag}</div>
                       <div className="text-[10px] text-text/50">ID: {ib.id}</div>
-                      {index === 0 ? (
+                      {ib.tag === "VLESS-WS" || (index === 0 && !inbounds.some((item) => item.tag === "VLESS-WS")) ? (
                         <div className="mt-1 text-[10px] text-purple-300">پروفایل اصلی · نام، حجم باقی‌مانده و انقضای واقعی هر کاربر</div>
-                      ) : index === 1 ? (
+                      ) : ib.tag === "VLESS-XHTTP" || (index === 1 && !inbounds.some((item) => item.tag === "VLESS-XHTTP")) ? (
                         <div className="mt-1 line-clamp-2 text-[10px] text-purple-300">😈 𝐅𝐔𝐄𝐋 𝐓𝐇𝐄 𝐅𝐈𝐑𝐄 • 𝐈𝐆𝐍𝐈𝐓𝐄 𝐘𝐎𝐔𝐑 𝐏𝐎𝐖𝐄𝐑 🚀 👑 𝐏𝐎𝐌𝐏 𝐍𝐄𝐓 • 𝐁𝐎𝐑𝐍 𝐓𝐎 𝐃𝐎𝐌𝐈𝐍𝐀𝐓𝐄 ⚡</div>
                       ) : (
                         <div className="mt-1 text-[10px] text-text/50">پروفایل اتصال {ib.protocol.toUpperCase()} · {ib.transport.toUpperCase()}</div>
