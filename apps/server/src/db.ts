@@ -60,6 +60,15 @@ export function migrate(): void {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS wireguard_peers (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      private_key TEXT NOT NULL,
+      public_key TEXT NOT NULL,
+      preshared_key TEXT NOT NULL,
+      address TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS user_inbounds (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       inbound_id INTEGER NOT NULL REFERENCES inbounds(id) ON DELETE CASCADE,
