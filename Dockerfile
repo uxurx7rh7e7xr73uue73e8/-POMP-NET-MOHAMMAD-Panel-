@@ -28,7 +28,9 @@ COPY --from=build /app/apps/web/dist ./public
 
 ENV PORT=8080
 ENV SIDERAIL_DATA_DIR=/data
-ENV XRAY_VERSION=v26.9.9
+ENV XRAY_VERSION=v26.11.9
 EXPOSE 8080
+# Direct Xray TCP and UDP ports (including native WireGuard); publish these on VPS deployments.
+EXPOSE 20000-29999/tcp 20000-29999/udp
 
 CMD ["node", "apps/server/dist/index.js"]
