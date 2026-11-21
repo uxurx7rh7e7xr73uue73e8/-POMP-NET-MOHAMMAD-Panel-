@@ -2,6 +2,7 @@ import type { Inbound, UserWithInbounds } from "./types.js";
 import { getSetting } from "./db.js";
 import { inboundDisplayLabel } from "./links.js";
 import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
+import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
 
 function cleanAddr(host: string): string {
   const clean = (getSetting("clean_address") || "").trim();
@@ -35,6 +36,30 @@ function clashProxy(ctx: Ctx): Record<string, unknown> | null {
   }
   if (inbound.protocol === "http") {
     return { name, type: "http", server: addr, port: inbound.port, username: user.email, password: user.password };
+  }
+  if (inbound.protocol === "wireguard") return null;
+  if (inbound.protocol === "socks") {
+    return { name, type: "socks5", server: addr, port: inbound.port, username: user.email, password: user.password, udp: true };
+  }
+  if (inbound.protocol === "http") {
+    return { name, type: "http", server: addr, port: inbound.port, username: user.email, password: user.password };
+  }
+  if (inbound.protocol === "wireguard") {
+    const peer = ensureWireGuardPeer(user);
+    const server = ensureWireGuardServerKeys();
+    return {
+      type: "wireguard", tag, server: addr, server_port: inbound.port,
+      local_address: [`${peer.address}/32`], private_key: peer.private_key,
+      peer_public_key: server.publicKey, pre_shared_key: peer.preshared_key,
+      mtu: 1420,
+      peers: [{ server: addr, server_port: inbound.port, public_key: server.publicKey, pre_shared_key: peer.preshared_key, allowed_ips: ["0.0.0.0/0", "::/0"] }],
+    };
+  }
+  if (inbound.protocol === "socks") {
+    return { type: "socks", tag, server: addr, server_port: inbound.port, version: "5", username: user.email, password: user.password };
+  }
+  if (inbound.protocol === "http") {
+    return { type: "http", tag, server: addr, server_port: inbound.port, username: user.email, password: user.password };
   }
   if (inbound.protocol === "vless") {
     if (inbound.transport === "xhttp") return null;
