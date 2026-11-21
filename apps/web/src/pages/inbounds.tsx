@@ -27,6 +27,8 @@ export default function InboundsPage() {
   const [transport, setTransport] = useState<Transport>("xhttp");
   const [expireDays, setExpireDays] = useState(0);
 
+  const { data: capabilities } = useQuery({ queryKey: ["runtime-capabilities"], queryFn: api.capabilities });
+
   const { data: inbounds = [] } = useQuery<Inbound[]>({
     queryKey: ["inbounds"],
     queryFn: api.inbounds,
@@ -87,7 +89,15 @@ export default function InboundsPage() {
     create.mutate({ tag, protocol, transport: protocol === "wireguard" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays });
   };
 
-  const enabledCount = inbounds.filter((i) => i.enabled && (!i.expires_at || i.expires_at > Date.now())).length;
+  const isReachable = (ib: Inbound) => {
+    if (!capabilities?.railway) return true;
+    if (ib.protocol === "wireguard") return false;
+    if (ib.protocol === "socks" || ib.protocol === "http") {
+      return capabilities.tcpProxy.configured && capabilities.tcpProxy.internalPort === ib.port;
+    }
+    return true;
+  };
+  const enabledCount = inbounds.filter((i) => i.enabled && (!i.expires_at || i.expires_at > Date.now()) && isReachable(i)).length;
 
   return (
     <div className="pn-sub-page space-y-6" dir="rtl">
@@ -95,6 +105,14 @@ export default function InboundsPage() {
         <div>
           <h1 className="font-heading text-3xl">{t("inbounds")}</h1>
           <p className="text-sm font-base text-text/60">مدیریت ورودی‌های واقعی Xray، پورت‌ها و زمان اعتبار</p>
+          {capabilities?.railway && (
+            <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
+              <strong>محدودیت شبکه Railway:</strong> WireGuard به UDP عمومی نیاز دارد و از این سرویس قابل انتشار نیست. برای SOCKS5 یا HTTP فقط یک پورت TCP با TCP Proxy قابل انتشار است.
+              {capabilities.tcpProxy.configured
+                ? <div className="mt-1">TCP Proxy تنظیم‌شده: <span dir="ltr" className="font-mono">{capabilities.tcpProxy.publicHost}:{capabilities.tcpProxy.publicPort}</span> ← پورت داخلی <span className="font-mono">{capabilities.tcpProxy.internalPort}</span></div>
+                : <div className="mt-1">برای انتشار یک Proxy، ابتدا در Railway یک TCP Proxy بساز و سپس متغیرهای RAILWAY_TCP_PROXY_INTERNAL_PORT، PUBLIC_TCP_PROXY_HOST و PUBLIC_TCP_PROXY_PORT را مطابق همان نگاشت تنظیم کن.</div>}
+            </div>
+          )}
         </div>
         <Badge variant="info" className="h-9 gap-1.5 px-3">
           <Waypoints className="h-4 w-4 shrink-0" />
@@ -159,6 +177,7 @@ export default function InboundsPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {inbounds.map((ib, index) => {
           const expired = !!ib.expires_at && ib.expires_at <= Date.now();
+          const reachable = isReachable(ib);
           return (
             <Card key={ib.id} className="overflow-hidden transition-transform hover:-translate-y-0.5">
               <CardContent className="p-4">
@@ -180,7 +199,7 @@ export default function InboundsPage() {
                       )}
                     </div>
                   </div>
-                  <Switch checked={!!ib.enabled && !expired} disabled={expired}
+                  <Switch checked={!!ib.enabled && !expired} disabled={expired || !reachable}
                     onCheckedChange={(v) => toggle.mutate({ id: ib.id, enabled: v })} />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-1.5">
