@@ -23,9 +23,11 @@ interface LinkContext {
 const GB = 1024 * 1024 * 1024;
 
 function persianDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+  const parts = new Intl.DateTimeFormat("en-u-ca-persian-nu-latn", {
     year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date(timestamp));
+  }).formatToParts(new Date(timestamp));
+  const part = (type: string) => parts.find((p) => p.type === type)?.value || "00";
+  return `${part("year")}-${part("month")}-${part("day")}`;
 }
 
 function firstTwoInboundIds(inbounds: Inbound[]): { first: number | undefined; second: number | undefined } {
@@ -146,7 +148,7 @@ export function buildUserLinks(
   return inbounds
     .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
     .map((inbound) => ({
-      tag: inbound.tag,
+      tag: inboundDisplayLabel(inbound, user, inbounds),
       protocol: inbound.protocol,
       transport: inbound.transport,
       link: buildLink({ host, address, user, inbound, allInbounds: inbounds }),
