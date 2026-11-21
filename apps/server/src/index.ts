@@ -16,7 +16,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
-import { seedInbounds } from "./inbounds.js";
+import { seedInbounds, expireInbounds } from "./inbounds.js";
 import { seedDefaultClient } from "./users.js";
 import { seedDefaultRouting } from "./routing.js";
 import { api } from "./routes.js";
@@ -112,6 +112,14 @@ setInterval(() => {
     /* noop */
   }
 }, 20_000);
+
+setInterval(() => {
+  try {
+    if (expireInbounds() > 0) restartXray();
+  } catch (error) {
+    console.error("[POMP NET inbound expiry]", error);
+  }
+}, 60_000);
 
 setInterval(() => {
   try {
