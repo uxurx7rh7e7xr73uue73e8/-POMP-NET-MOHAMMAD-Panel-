@@ -30,7 +30,7 @@ export const config = {
   port: Number(process.env.PORT || 8080),
   host: "0.0.0.0",
   jwtSecret: resolveSecret(),
-  xrayVersion: process.env.XRAY_VERSION || "v26.9.9",
+  xrayVersion: process.env.XRAY_VERSION || "v26.11.9",
   xrayApiPort: Number(process.env.XRAY_API_PORT || 10085),
   inboundBasePort: Number(process.env.XRAY_INBOUND_BASE_PORT || 20000),
   publicDomain: process.env.PUBLIC_DOMAIN || process.env.RAILWAY_PUBLIC_DOMAIN || "",
