@@ -178,6 +178,15 @@ export async function testBot(
   return anyOk ? { ok: true } : { ok: false, error: lastError };
 }
 
+export async function sendTelegramToChat(chatId: string, message: string): Promise<boolean> {
+  const cfg = getBotConfig();
+  if (!cfg.enabled || !cfg.token) return false;
+  const result = await apiCall(cfg.token, "sendMessage", {
+    chat_id: chatId, text: message, parse_mode: "HTML", disable_web_page_preview: true,
+  });
+  return result.ok;
+}
+
 export async function sendBroadcastToLinkedUsers(message: string): Promise<{ sent: number; failed: number; skipped: number }> {
   const cfg = getBotConfig();
   if (!cfg.enabled || !cfg.token) throw new Error("ربات فعال نیست یا توکن تنظیم نشده است");
@@ -319,6 +328,23 @@ async function handleTelegramMessage(token: string, update: TelegramUpdate): Pro
 
   if (command === "/myid") {
     await sendTelegramText(token, chatId, `🆔 شناسه تلگرام شما: <code>${telegramId}</code>`);
+    return;
+  }
+
+  if (command === "/support") {
+    const firstMessage = raw.replace(/^\\/support(?:@\\w+)?\\s*/i, "").trim();
+    if (!firstMessage) {
+      await sendTelegramText(token, chatId, "برای ثبت تیکت، پیام خود را بعد از دستور وارد کنید:\\n<code>/support متن درخواست شما</code>");
+      return;
+    }
+    const linked = listUsers().find((u) => u.telegram_id === telegramId);
+    const now = Date.now();
+    const info = db.prepare("INSERT INTO support_tickets (user_id, telegram_id, subject, status, priority, created_at, updated_at) VALUES (?, ?, ?, 'open', 'normal', ?, ?)")
+      .run(linked?.id ?? null, telegramId, firstMessage.slice(0, 120), now, now);
+    const ticketId = Number(info.lastInsertRowid);
+    db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'user', ?, ?, ?)")
+      .run(ticketId, telegramId, firstMessage, now);
+    await sendTelegramText(token, chatId, `✅ درخواست شما ثبت شد.\\nشماره تیکت: <code>#${ticketId}</code>\\nپاسخ پشتیبانی از همین ربات ارسال می‌شود.`);
     return;
   }
 
