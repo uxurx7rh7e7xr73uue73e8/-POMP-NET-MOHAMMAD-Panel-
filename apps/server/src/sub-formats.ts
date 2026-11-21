@@ -1,5 +1,6 @@
 import type { Inbound, UserWithInbounds } from "./types.js";
 import { getSetting } from "./db.js";
+import { inboundDisplayLabel } from "./links.js";
 
 function cleanAddr(host: string): string {
   const clean = (getSetting("clean_address") || "").trim();
@@ -10,6 +11,7 @@ interface Ctx {
   host: string;
   user: UserWithInbounds;
   inbound: Inbound;
+  allInbounds: Inbound[];
 }
 
 function net(inbound: Inbound): string {
@@ -19,7 +21,7 @@ function net(inbound: Inbound): string {
 function clashProxy(ctx: Ctx): Record<string, unknown> | null {
   const { user, inbound, host } = ctx;
   const addr = cleanAddr(host);
-  const name = `${inbound.tag}`;
+  const name = inboundDisplayLabel(inbound, user, ctx.allInbounds);
   const alpn = user.alpn ? user.alpn.split(",").map((a) => a.trim()) : undefined;
   const wsOpts = {
     path: inbound.path,
@@ -83,7 +85,7 @@ export function buildClashConfig(
 ): string {
   const proxies = inbounds
     .filter((ib) => ib.enabled && user.inbound_ids.includes(ib.id))
-    .map((inbound) => clashProxy({ host, user, inbound }))
+    .map((inbound) => clashProxy({ host, user, inbound, allInbounds: inbounds }))
     .filter((p): p is Record<string, unknown> => p !== null);
 
   const names = proxies.map((p) => p.name as string);
@@ -111,7 +113,7 @@ export function buildClashConfig(
 function singboxOutbound(ctx: Ctx): Record<string, unknown> | null {
   const { user, inbound, host } = ctx;
   const addr = cleanAddr(host);
-  const tag = inbound.tag;
+  const tag = inboundDisplayLabel(inbound, user, ctx.allInbounds);
   const tls = {
     enabled: true,
     server_name: host,
@@ -165,7 +167,7 @@ export function buildSingboxConfig(
 ): string {
   const outbounds = inbounds
     .filter((ib) => ib.enabled && user.inbound_ids.includes(ib.id))
-    .map((inbound) => singboxOutbound({ host, user, inbound }))
+    .map((inbound) => singboxOutbound({ host, user, inbound, allInbounds: inbounds }))
     .filter((o): o is Record<string, unknown> => o !== null);
 
   const tags = outbounds.map((o) => o.tag as string);
