@@ -146,11 +146,11 @@ export default function SubscriptionPage() {
   const chart = buildChart(sub.history || []);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-bg pb-16">
+    <div className="pn-sub-page relative min-h-screen overflow-x-hidden bg-bg pb-16" dir="rtl">
       <AnimatedBackground />
 
       <div className="relative mx-auto w-full min-w-0 max-w-3xl px-4 pt-6 sm:pt-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <header className="pn-sub-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-base border-2 border-border bg-main text-mtext neo-shadow">
               <RailLogo className="h-7 w-7" />
@@ -182,7 +182,7 @@ export default function SubscriptionPage() {
           </div>
         </header>
 
-        <Card className="mt-6 animate-pop-in">
+        <Card className="pn-sub-overview mt-6 animate-pop-in">
           <CardContent className="space-y-5 p-5 sm:p-6">
             <div>
               <div className="flex items-baseline justify-between gap-2">
@@ -286,7 +286,7 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
 
-        <div className="mt-4 space-y-2">
+        <div className="pn-sub-links mt-4 space-y-2">
           <div className="flex min-w-0 items-center gap-2 rounded-base border-2 border-border bg-bw px-3 py-2 neo-shadow">
             <Link2 className="h-4 w-4 shrink-0 text-text/50" />
             <span className="truncate font-mono text-xs text-text/80">{subUrl}</span>
@@ -306,7 +306,7 @@ export default function SubscriptionPage() {
           <p className="text-center text-[11px] font-base text-text/40">{t("copyHint")}</p>
         </div>
 
-        <div className="mt-8">
+        <div className="pn-sub-configs mt-8">
           <h2 className="mb-3 font-heading text-lg">{t("configurations")}</h2>
           <div className="grid gap-3">
             {links.map((link, i) => (
