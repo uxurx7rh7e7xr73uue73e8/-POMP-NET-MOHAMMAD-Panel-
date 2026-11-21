@@ -75,6 +75,14 @@ function buildRoutingRules(inbounds: Inbound[]) {
     else base.domain = values;
     rules.push(base);
   }
+
+  // The game profile uses its own direct freedom outbound with TCP Fast Open.
+  // It can reduce connection setup overhead on compatible kernels, but cannot
+  // guarantee a lower geographic/network RTT.
+  const gameTags = inbounds.filter((i) => i.tag.startsWith("POMP-GAME-")).map((i) => i.tag);
+  if (gameTags.length) {
+    rules.push({ type: "field", inboundTag: gameTags, outboundTag: "game-direct" });
+  }
   return rules;
 }
 
@@ -118,6 +126,12 @@ export function buildXrayConfig() {
     ],
     outbounds: [
       { tag: "direct", protocol: "freedom", settings: {} },
+      {
+        tag: "game-direct",
+        protocol: "freedom",
+        settings: {},
+        streamSettings: { sockopt: { tcpFastOpen: true, tcpNoDelay: true } },
+      },
       { tag: "blocked", protocol: "blackhole", settings: {} },
     ],
     routing: {
