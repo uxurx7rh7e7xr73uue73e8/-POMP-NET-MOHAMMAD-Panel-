@@ -14,6 +14,7 @@ import { listUsers, isUserActive } from "./users.js";
 import { listRoutingRules } from "./routing.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
 import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
+import { isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 function streamSettings(inbound: Inbound) {
   const base: Record<string, unknown> = { network: inbound.transport };
@@ -120,7 +121,7 @@ function buildRoutingRules(inbounds: Inbound[]) {
 }
 
 export function buildXrayConfig() {
-  const inbounds = listEnabledInbounds();
+  const inbounds = listEnabledInbounds().filter(isPubliclyReachableInbound);
   const users = listUsers();
 
   const inboundConfigs = inbounds.map((ib) => ({
