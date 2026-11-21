@@ -29,7 +29,7 @@ import {
 } from "./auth.js";
 import { db, getSetting, setSetting } from "./db.js";
 import { getSystemStats } from "./system.js";
-import { listInbounds, setInboundEnabled, getInbound } from "./inbounds.js";
+import { listInbounds, setInboundEnabled, getInbound, createInbound, deleteInbound } from "./inbounds.js";
 import {
   listUsers,
   createUser,
@@ -156,8 +156,33 @@ api.post("/system/restart-xray", requirePermission("dashboard"), (req: AuthedReq
   res.json({ ok: true });
 });
 
-api.get("/inbounds", (_req, res) => {
+api.get("/inbounds", requirePermission("inbounds"), (_req, res) => {
   res.json(listInbounds());
+});
+
+api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) => {
+  const body = z.object({
+    tag: z.string().trim().min(2).max(48),
+    protocol: z.enum(["vless", "vmess", "trojan"]),
+    transport: z.enum(["ws", "xhttp", "httpupgrade"]),
+    expireDays: z.number().int().min(0).max(3650).optional(),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
+  try {
+    const inbound = createInbound(body.data);
+    logActivity(req.admin!.username, "inbound_create", `${inbound.tag} : ${inbound.port}`);
+    restartXray();
+    res.json(inbound);
+  } catch (e) { res.status(400).json({ error: (e as Error).message }); }
+});
+
+api.delete("/inbounds/:id", requirePermission("inbounds"), (req: AuthedRequest, res) => {
+  try {
+    if (!deleteInbound(Number(req.params.id))) { res.status(404).json({ error: "not found" }); return; }
+    logActivity(req.admin!.username, "inbound_delete", `#${req.params.id}`);
+    restartXray();
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: (e as Error).message }); }
 });
 
 api.patch("/inbounds/:id", requirePermission("inbounds"), async (req: AuthedRequest, res) => {
