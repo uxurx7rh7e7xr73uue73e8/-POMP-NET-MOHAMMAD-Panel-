@@ -1,8 +1,25 @@
-import { createPrivateKey, createPublicKey, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createPrivateKey, createPublicKey, randomBytes } from "node:crypto";
+import { config } from "./config.js";
 import { db, getSetting, setSetting } from "./db.js";
 import type { UserWithInbounds } from "./types.js";
 
 const PKCS8_X25519_PREFIX = Buffer.from("302e020100300506032b656e04220420", "hex");
+const encryptionKey = createHash("sha256").update(config.jwtSecret).digest();
+
+function seal(value: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", encryptionKey, iv);
+  const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  return `enc:v1:${iv.toString("base64")}:${cipher.getAuthTag().toString("base64")}:${encrypted.toString("base64")}`;
+}
+
+function openSecret(value: string): string {
+  if (!value.startsWith("enc:v1:")) return value;
+  const [, , iv, tag, body] = value.split(":");
+  const decipher = createDecipheriv("aes-256-gcm", encryptionKey, Buffer.from(iv, "base64"));
+  decipher.setAuthTag(Buffer.from(tag, "base64"));
+  return Buffer.concat([decipher.update(Buffer.from(body, "base64")), decipher.final()]).toString("utf8");
+}
 
 function makeKeyPair(): { privateKey: string; publicKey: string } {
   const raw = randomBytes(32);
@@ -28,10 +45,11 @@ export function ensureWireGuardServerKeys(): { privateKey: string; publicKey: st
     const pair = makeKeyPair();
     privateKey = pair.privateKey;
     publicKey = pair.publicKey;
-    setSetting("wireguard_server_private_key", privateKey);
+    setSetting("wireguard_server_private_key", seal(privateKey));
     setSetting("wireguard_server_public_key", publicKey);
   }
-  return { privateKey, publicKey };
+  if (!privateKey.startsWith("enc:v1:")) setSetting("wireguard_server_private_key", seal(privateKey));
+  return { privateKey: openSecret(privateKey), publicKey };
 }
 
 export interface WireGuardPeer {
@@ -44,7 +62,12 @@ export interface WireGuardPeer {
 export function ensureWireGuardPeer(user: UserWithInbounds): WireGuardPeer {
   const existing = db.prepare("SELECT private_key, public_key, preshared_key, address FROM wireguard_peers WHERE user_id = ?")
     .get(user.id) as WireGuardPeer | undefined;
-  if (existing) return existing;
+  if (existing) {
+    if (!existing.private_key.startsWith("enc:v1:")) {
+      db.prepare("UPDATE wireguard_peers SET private_key = ? WHERE user_id = ?").run(seal(existing.private_key), user.id);
+    }
+    return { ...existing, private_key: openSecret(existing.private_key) };
+  }
 
   const pair = makeKeyPair();
   const psk = randomBytes(32).toString("base64");
@@ -55,7 +78,7 @@ export function ensureWireGuardPeer(user: UserWithInbounds): WireGuardPeer {
   if (slot >= 255) throw new Error("WireGuard IPv4 peer pool is full");
   const address = `10.77.0.${slot}`;
   db.prepare("INSERT INTO wireguard_peers (user_id, private_key, public_key, preshared_key, address, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(user.id, pair.privateKey, pair.publicKey, psk, address, Date.now());
+    .run(user.id, seal(pair.privateKey), pair.publicKey, psk, address, Date.now());
   return { private_key: pair.privateKey, public_key: pair.publicKey, preshared_key: psk, address };
 }
 
