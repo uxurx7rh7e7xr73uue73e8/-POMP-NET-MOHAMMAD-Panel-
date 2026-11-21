@@ -41,10 +41,17 @@ export function inboundDisplayLabel(inbound: Inbound, user: UserWithInbounds, al
     const remaining = user.data_limit > 0
       ? `${Math.max(0, (user.data_limit - user.total) / GB).toFixed(2)} GB`
       : "نامحدود";
-    const days = user.expire_at
-      ? Math.max(0, Math.ceil((user.expire_at - Date.now()) / 86_400_000))
+    // Use the earliest real deadline: account expiry or subscription-token
+    // lifetime measured from the first subscription fetch.
+    const tokenExpiry = user.sub_expire_days > 0
+      ? (user.sub_first_seen ?? Date.now()) + user.sub_expire_days * 86_400_000
       : null;
-    const expiry = user.expire_at ? persianDate(user.expire_at) : "بدون انقضا";
+    const deadlines = [user.expire_at, tokenExpiry].filter((value): value is number => value !== null);
+    const actualExpiry = deadlines.length ? Math.min(...deadlines) : null;
+    const days = actualExpiry
+      ? Math.max(0, Math.ceil((actualExpiry - Date.now()) / 86_400_000))
+      : null;
+    const expiry = actualExpiry ? persianDate(actualExpiry) : "بدون انقضا";
     const dayText = days === null ? "∞" : `${days}d`;
     const active = isUserActive(user);
     return `🚀 𝐏𝐎𝐌𝐏 𝐍𝐄𝐓 ⚡ 𝐍𝐄𝐗𝐔𝐒  👤 ${user.email} | 📦 ${remaining} ⏳ ${dayText} | 📅 ${expiry} 🛡️ ${active ? "✅" : "⛔"}  👑 𝐏𝐎𝐖𝐄𝐑𝐄𝐃 𝐁𝐘 𝐏𝐎𝐌𝐏 𝐍𝐄𝐓 🔥`;
