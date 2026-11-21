@@ -3,7 +3,7 @@ name: POMP NET QUANTUM NEXUS CI
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, pompnet-quantum-redesign]
   pull_request:
     branches: [main]
 
@@ -41,10 +41,11 @@ jobs:
       - name: Start isolated container
         run: |
           docker run -d --name pompnet-ci -p 18080:8080 \
+            -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \
             -e NODE_ENV=production \
             -e PORT=8080 \
             -e SIDERAIL_DATA_DIR=/data \
-            -e XRAY_VERSION=v26.9.9 \
+            -e XRAY_VERSION=v26.11.9 \
             pompnet-quantum-nexus:ci
       - name: Verify API and live Xray process
         shell: bash
@@ -91,4 +92,23 @@ jobs:
               console.log("Xray inbound TCP listeners open:", open.join(", "));
             }).catch(error => { console.error(error); process.exit(1); });
           '
-          echo "Docker image, setup/auth API, Xray process and five inbound listeners passed."
+          docker exec pompnet-ci node -e '
+            const fs = require("node:fs");
+            const rows = fs.readFileSync("/proc/net/udp", "utf8").trim().split("\\n").slice(1);
+            const port = rows.some(line => line.trim().split(/\\s+/)[1]?.endsWith(":4E2B"));
+            if (!port) { console.error("WireGuard UDP listener 20011 is missing"); process.exit(1); }
+            console.log("WireGuard UDP listener 20011 is bound.");
+          '
+          token=$(docker exec pompnet-ci node --input-type=module -e '
+            import { DatabaseSync } from "node:sqlite";
+            const db = new DatabaseSync("/data/siderail.db");
+            const row = db.prepare("SELECT sub_token FROM users WHERE email = ?").get("sample-user");
+            if (!row) process.exit(1);
+            process.stdout.write(row.sub_token);
+            db.close();
+          ')
+          curl -fsS "http://127.0.0.1:18080/sub/$token?raw=1" | base64 -d > /tmp/pompnet-sub.txt
+          grep -q "^wireguard://" /tmp/pompnet-sub.txt
+          grep -q "^socks://" /tmp/pompnet-sub.txt
+          grep -q "^http://" /tmp/pompnet-sub.txt
+          echo "Docker image, API/auth, Xray core, TCP/UDP inbound listeners and WireGuard/SOCKS/HTTP subscription links passed."
