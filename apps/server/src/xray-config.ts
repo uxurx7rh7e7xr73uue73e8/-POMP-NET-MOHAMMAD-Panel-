@@ -48,6 +48,7 @@ function protocolSettings(inbound: Inbound, users: UserWithInbounds[]) {
         };
       }),
       mtu: 1420,
+      noKernelTun: true,
     };
   }
   if (inbound.protocol === "socks") {
