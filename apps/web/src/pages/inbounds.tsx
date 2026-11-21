@@ -145,7 +145,7 @@ export default function InboundsPage() {
       </Card>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {inbounds.map((ib) => {
+        {inbounds.map((ib, index) => {
           const expired = !!ib.expires_at && ib.expires_at <= Date.now();
           return (
             <Card key={ib.id} className="overflow-hidden transition-transform hover:-translate-y-0.5">
@@ -159,6 +159,13 @@ export default function InboundsPage() {
                     <div className="min-w-0">
                       <div className="truncate font-heading text-sm">{ib.tag}</div>
                       <div className="text-[10px] text-text/50">ID: {ib.id}</div>
+                      {index === 0 ? (
+                        <div className="mt-1 text-[10px] text-purple-300">پروفایل اصلی · نام، حجم باقی‌مانده و انقضای واقعی هر کاربر</div>
+                      ) : index === 1 ? (
+                        <div className="mt-1 line-clamp-2 text-[10px] text-purple-300">😈 𝐅𝐔𝐄𝐋 𝐓𝐇𝐄 𝐅𝐈𝐑𝐄 • 𝐈𝐆𝐍𝐈𝐓𝐄 𝐘𝐎𝐔𝐑 𝐏𝐎𝐖𝐄𝐑 🚀 👑 𝐏𝐎𝐌𝐏 𝐍𝐄𝐓 • 𝐁𝐎𝐑𝐍 𝐓𝐎 𝐃𝐎𝐌𝐈𝐍𝐀𝐓𝐄 ⚡</div>
+                      ) : (
+                        <div className="mt-1 text-[10px] text-text/50">پروفایل اتصال {ib.protocol.toUpperCase()} · {ib.transport.toUpperCase()}</div>
+                      )}
                     </div>
                   </div>
                   <Switch checked={!!ib.enabled && !expired} disabled={expired}
