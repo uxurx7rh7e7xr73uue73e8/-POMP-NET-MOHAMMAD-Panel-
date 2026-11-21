@@ -52,6 +52,15 @@ export default function InboundsPage() {
     onError: (e: Error) => toast.push("error", e.message),
   });
 
+  const renew = useMutation({
+    mutationFn: ({ id, days }: { id: number; days: number }) => api.renewInbound(id, days),
+    onSuccess: (ib) => {
+      refresh();
+      toast.push("success", `اعتبار ${ib.tag} تمدید و فعال شد.`);
+    },
+    onError: (e: Error) => toast.push("error", e.message),
+  });
+
   const remove = useMutation({
     mutationFn: api.deleteInbound,
     onSuccess: () => {
@@ -169,6 +178,19 @@ export default function InboundsPage() {
                     <span className="mr-auto text-text/80">{ib.expires_at ? new Date(ib.expires_at).toLocaleString("fa-IR") : "بدون انقضا"}</span>
                   </div>
                 </div>
+                <button type="button" onClick={() => {
+                  const raw = window.prompt("چند روز به اعتبار این Inbound اضافه شود؟ عدد 0 یعنی بدون تاریخ انقضا.", "30");
+                  if (raw === null) return;
+                  const days = Number(raw);
+                  if (!Number.isInteger(days) || days < 0 || days > 3650) {
+                    toast.push("error", "عدد باید بین 0 تا 3650 باشد.");
+                    return;
+                  }
+                  renew.mutate({ id: ib.id, days });
+                }} disabled={renew.isPending}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-purple-400/30 px-3 py-2 text-xs text-purple-200 hover:bg-purple-500/10 disabled:opacity-50">
+                  <CalendarClock className="h-3.5 w-3.5" /> تمدید / تغییر تاریخ انقضا
+                </button>
                 <button type="button" onClick={() => {
                   if (window.confirm("این Inbound حذف شود؟ فقط وقتی قابل حذف است که به هیچ کاربری اختصاص نداشته باشد.")) remove.mutate(ib.id);
                 }} disabled={remove.isPending}
