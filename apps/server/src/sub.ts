@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { db } from "./db.js";
 import { config, publicHost } from "./config.js";
 import { listInbounds } from "./inbounds.js";
-import { buildUserLinks } from "./links.js";
+import { buildUserLinks, subscriptionProfileTitle } from "./links.js";
 import { buildClashConfig, buildSingboxConfig } from "./sub-formats.js";
 import {
   getUserByToken,
@@ -53,6 +53,7 @@ function usagePayload(token: string, host: string) {
       comment: user.comment,
     },
     links,
+    profileTitle: subscriptionProfileTitle(user, inbounds),
     history: usageHistory(user.id),
   };
 }
@@ -103,7 +104,7 @@ sub.get("/:token/clash", (req, res) => {
     return;
   }
   res.setHeader("Content-Type", "text/yaml; charset=utf-8");
-  res.setHeader("Profile-Title", Buffer.from(`POMP NET MOHAMMAD ${data.user.email}`).toString("base64"));
+  res.setHeader("Profile-Title", Buffer.from(subscriptionProfileTitle(data.user, data.inbounds)).toString("base64"));
   res.send(buildClashConfig(host, data.user, data.inbounds));
 });
 
@@ -148,7 +149,7 @@ sub.get("/:token", (req, res) => {
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Subscription-Userinfo", subUserInfo(data.user));
   res.setHeader("Profile-Update-Interval", "12");
-  res.setHeader("Profile-Title", Buffer.from(`POMP NET MOHAMMAD ${data.user.email}`).toString("base64"));
+  res.setHeader("Profile-Title", Buffer.from(data.profileTitle).toString("base64"));
   res.send(Buffer.from(body).toString("base64"));
 });
 
