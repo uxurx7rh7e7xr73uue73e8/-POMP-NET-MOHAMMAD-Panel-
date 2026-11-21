@@ -15,21 +15,34 @@ const SEED_INBOUNDS: SeedDef[] = [
   { tag: "VMess-WS", protocol: "vmess", transport: "ws" },
   { tag: "Trojan-WS", protocol: "trojan", transport: "ws" },
   { tag: "VLESS-HTTPUpgrade", protocol: "vless", transport: "httpupgrade" },
+  { tag: "POMP-XHTTP-EDGE", protocol: "vless", transport: "xhttp" },
+  { tag: "POMP-WS-STABLE", protocol: "vless", transport: "ws" },
+  { tag: "POMP-HTTPUPGRADE-FAST", protocol: "vless", transport: "httpupgrade" },
+  { tag: "POMP-TROJAN-STABLE", protocol: "trojan", transport: "ws" },
+  { tag: "POMP-VMESS-COMPAT", protocol: "vmess", transport: "ws" },
+  { tag: "POMP-GAME-ROUTE", protocol: "vless", transport: "xhttp" },
 ];
 
 export function seedInbounds(): void {
-  const count = (db.prepare("SELECT COUNT(*) AS c FROM inbounds").get() as { c: number }).c;
-  if (count > 0) return;
-  let offset = 0;
+  // Add only missing presets; never reset or overwrite an existing panel's
+  // inbound IDs, ports, paths, user assignments or expiry settings.
+  const used = new Set((db.prepare("SELECT port FROM inbounds").all() as { port: number }[]).map((r) => r.port));
+  let nextPort = config.inboundBasePort;
   const insert = db.prepare(
     `INSERT INTO inbounds (tag, protocol, transport, port, path, host, enabled, created_at)
      VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
   );
   for (const s of SEED_INBOUNDS) {
-    const port = config.inboundBasePort + offset;
-    const path = `/pompnet/${s.transport}-${nanoid(8)}`;
-    insert.run(s.tag, s.protocol, s.transport, port, path, "", Date.now());
-    offset += 1;
+    if (db.prepare("SELECT 1 FROM inbounds WHERE tag = ?").get(s.tag)) continue;
+    while (used.has(nextPort)) nextPort++;
+    if (nextPort >= config.inboundBasePort + 10000) {
+      console.error("[POMP NET] No free local port remains for inbound preset:", s.tag);
+      continue;
+    }
+    const path = `/pompnet/${s.transport}-${nanoid(10)}`;
+    insert.run(s.tag, s.protocol, s.transport, nextPort, path, "", Date.now());
+    used.add(nextPort);
+    nextPort++;
   }
 }
 
