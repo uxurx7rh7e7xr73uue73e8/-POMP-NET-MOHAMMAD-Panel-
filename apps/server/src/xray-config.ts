@@ -13,6 +13,7 @@ import { listEnabledInbounds } from "./inbounds.js";
 import { listUsers, isUserActive } from "./users.js";
 import { listRoutingRules } from "./routing.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
+import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
 
 function streamSettings(inbound: Inbound) {
   const base: Record<string, unknown> = { network: inbound.transport };
@@ -32,6 +33,38 @@ function inboundClients(inbound: Inbound, users: UserWithInbounds[]) {
 
 function protocolSettings(inbound: Inbound, users: UserWithInbounds[]) {
   const clients = inboundClients(inbound, users);
+  if (inbound.protocol === "wireguard") {
+    const server = ensureWireGuardServerKeys();
+    return {
+      secretKey: server.privateKey,
+      peers: clients.map((client) => {
+        const peer = ensureWireGuardPeer(client);
+        return {
+          publicKey: peer.public_key,
+          preSharedKey: peer.preshared_key,
+          allowedIPs: [`${peer.address}/32`],
+          email: client.email,
+          level: 0,
+        };
+      }),
+      mtu: 1420,
+    };
+  }
+  if (inbound.protocol === "socks") {
+    return {
+      auth: "password",
+      accounts: clients.map((client) => ({ user: client.email, pass: client.password })),
+      udp: true,
+      ip: "127.0.0.1",
+    };
+  }
+  if (inbound.protocol === "http") {
+    return {
+      accounts: clients.map((client) => ({ user: client.email, pass: client.password })),
+      allowTransparent: false,
+      userLevel: 0,
+    };
+  }
   if (inbound.protocol === "vless") {
     return {
       clients: clients.map((c) => ({ id: c.uuid, email: c.email, flow: "" })),
@@ -92,11 +125,11 @@ export function buildXrayConfig() {
 
   const inboundConfigs = inbounds.map((ib) => ({
     tag: ib.tag,
-    listen: "127.0.0.1",
+    listen: ib.protocol === "wireguard" || ib.protocol === "socks" || ib.protocol === "http" ? "0.0.0.0" : "127.0.0.1",
     port: ib.port,
     protocol: ib.protocol,
     settings: protocolSettings(ib, users),
-    streamSettings: streamSettings(ib),
+    ...(ib.protocol === "wireguard" || ib.protocol === "socks" || ib.protocol === "http" ? {} : { streamSettings: streamSettings(ib) }),
     sniffing: { enabled: false, destOverride: [] },
   }));
 
