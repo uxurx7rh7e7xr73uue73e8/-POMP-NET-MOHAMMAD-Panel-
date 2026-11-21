@@ -60,7 +60,7 @@ export default function BotPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="pn-bot-page space-y-6" dir="rtl">
       <div>
         <h1 className="font-heading text-3xl">{t("telegramBot")}</h1>
         <p className="text-sm font-base text-text/60">
@@ -68,8 +68,8 @@ export default function BotPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
+      <Card className="pn-bot-card overflow-hidden">
+        <CardHeader className="pn-bot-head">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-main" />
             <CardTitle>{t("botConfig")}</CardTitle>
@@ -85,8 +85,8 @@ export default function BotPage() {
             </span>
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between rounded-base border-2 border-border bg-bg/40 p-3">
+        <CardContent className="pn-bot-content space-y-5">
+          <div className="pn-bot-toggle flex items-center justify-between rounded-base border-2 border-border bg-bg/40 p-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-main" />
               <span className="font-heading text-sm">{t("enableBot")}</span>
@@ -94,7 +94,7 @@ export default function BotPage() {
             <Switch checked={enabled} onCheckedChange={setEnabled} />
           </div>
 
-          <div className="space-y-2">
+          <div className="pn-bot-field space-y-2">
             <Label htmlFor="token">{t("botToken")}</Label>
             <Input
               id="token"
@@ -105,7 +105,7 @@ export default function BotPage() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="pn-bot-field space-y-2">
             <div className="flex items-center justify-between">
               <Label>{t("chatIds")}</Label>
               <Button
