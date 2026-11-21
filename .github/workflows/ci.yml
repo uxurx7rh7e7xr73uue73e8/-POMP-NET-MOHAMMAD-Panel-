@@ -1,5 +1,5 @@
 name: POMP NET QUANTUM NEXUS CI
-# Includes native WireGuard UDP and authenticated proxy regression checks.
+# Includes native WireGuard UDP, authenticated proxy and inbound-expiry regression checks.
 
 on:
   workflow_dispatch:
