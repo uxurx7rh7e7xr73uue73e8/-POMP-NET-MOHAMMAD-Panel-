@@ -29,7 +29,7 @@ import {
 } from "./auth.js";
 import { db, getSetting, setSetting } from "./db.js";
 import { getSystemStats } from "./system.js";
-import { listInbounds, setInboundEnabled, getInbound, createInbound, deleteInbound } from "./inbounds.js";
+import { listInbounds, setInboundEnabled, getInbound, createInbound, deleteInbound, renewInbound } from "./inbounds.js";
 import {
   listUsers,
   createUser,
@@ -187,12 +187,22 @@ api.delete("/inbounds/:id", requirePermission("inbounds"), (req: AuthedRequest, 
 
 api.patch("/inbounds/:id", requirePermission("inbounds"), async (req: AuthedRequest, res) => {
   const id = Number(req.params.id);
-  const body = z.object({ enabled: z.boolean() }).safeParse(req.body);
+  const body = z.object({
+    enabled: z.boolean().optional(),
+    expireDays: z.number().int().min(0).max(3650).optional(),
+  }).refine((v) => v.enabled !== undefined || v.expireDays !== undefined).safeParse(req.body);
   if (!body.success || !getInbound(id)) {
     res.status(400).json({ error: "invalid" });
     return;
   }
-  setInboundEnabled(id, body.data.enabled);
+  if (body.data.expireDays !== undefined) {
+    const inbound = renewInbound(id, body.data.expireDays);
+    logActivity(req.admin!.username, "inbound_renew", `#${id} ${body.data.expireDays} days`);
+    restartXray();
+    res.json(inbound);
+    return;
+  }
+  setInboundEnabled(id, body.data.enabled!);
   logActivity(req.admin!.username, "inbound_toggle", `#${id} -> ${body.data.enabled}`);
   restartXray();
   res.json({ ok: true });
