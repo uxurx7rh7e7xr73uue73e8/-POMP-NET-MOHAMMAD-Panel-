@@ -52,7 +52,7 @@ export default function NodesPage() {
     try { await navigator.clipboard.writeText(value); toast.push("success", "کپی شد."); }
     catch { toast.push("error", "مرورگر اجازه کپی نداد؛ متن را دستی انتخاب کنید."); }
   };
-  const installText = `POMP_CONTROLLER_URL=https://YOUR-PANEL-DOMAIN
+  const installText = `POMP_CONTROLLER_URL=${window.location.origin}
 POMP_NODE_TOKEN=${newToken}
 POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
