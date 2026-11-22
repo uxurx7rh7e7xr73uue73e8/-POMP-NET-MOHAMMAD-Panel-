@@ -55,8 +55,7 @@ if [ ! -x "$SING_BOX_BIN" ]; then
 fi
 "$SING_BOX_BIN" version >/dev/null
 if [ ! -x "$XRAY_BIN" ]; then
-  echo "Xray executable not found at $XRAY_BIN. Install Xray-core first."
-  exit 1
+  echo "Xray is not installed at $XRAY_BIN. Hysteria2/TUIC-only nodes can still run sing-box; install Xray before assigning VLESS/VMess/Trojan/WireGuard/SOCKS/HTTP."
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
