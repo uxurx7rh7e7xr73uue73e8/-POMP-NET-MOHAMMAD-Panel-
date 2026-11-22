@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Github, Star, Tag, Languages, Send } from "lucide-react";
+import { Github, Star, Tag, Languages, Send, CalendarDays, Clock3, ShieldCheck } from "lucide-react";
 import { RailLogo } from "@/components/rail-logo";
 import { useGitHubStars } from "@/components/github-button";
 import { useToast } from "@/components/ui/toast";
@@ -27,6 +27,13 @@ export function AuthShell({
   const { lang, setLang, t } = useI18n();
   const toast = useToast();
   const stars = useGitHubStars();
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const tehranDate = now.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });
+  const tehranTime = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const changeLang = (l: Lang) => {
     if (l === lang) return;
@@ -54,7 +61,7 @@ export function AuthShell({
                 <RailLogo className="h-8 w-8" />
               </div>
               <div>
-                <div className="font-heading text-2xl leading-none tracking-tight xl:text-3xl">POMP NET MOHAMMAD</div>
+                <div className="font-heading text-2xl font-black leading-none tracking-tight xl:text-3xl">POMP NET MOHAMMAD</div>
                 <div className="mt-2 text-sm font-base text-white/65">
                   SELFVERSE · Xray Management
                 </div>
@@ -62,7 +69,7 @@ export function AuthShell({
             </div>
 
             <div className="relative space-y-5">
-              <h2 className="max-w-[16ch] font-heading text-4xl leading-[1.2] xl:text-5xl">{heading}</h2>
+              <div className="mb-3 h-px w-36 bg-gradient-to-l from-[#168cff] via-[#8b35ff] to-transparent shadow-[0_0_12px_rgba(139,53,255,.7)]" />\n              <h2 className="max-w-[16ch] font-heading text-4xl leading-[1.2] xl:text-5xl">{heading}</h2>
               <p className="max-w-[34ch] font-base text-base leading-8 text-white/70">{sub}</p>
               {highlights && (
                 <ul className="space-y-3 pt-3">
