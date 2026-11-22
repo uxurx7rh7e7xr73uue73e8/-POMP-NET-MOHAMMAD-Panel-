@@ -117,7 +117,7 @@ export default function InboundsPage() {
           )}
           {capabilities?.railway && (
             <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
-              <strong>محدودیت شبکه Railway:</strong> WireGuard، Hysteria2 و TUIC به UDP عمومی نیاز دارند و از لبه Railway قابل انتشار نیستند. برای WireGuard می‌توانی از بخش «مدیریت نودها» یک سرور لینوکسی مستقل وصل کنی؛ پس از آنلاین‌شدن نود، لینک WireGuard اشتراک به آدرس همان نود هدایت می‌شود. برای SOCKS5 یا HTTP فقط یک پورت TCP با TCP Proxy قابل انتشار است.
+              <strong>محدودیت شبکه Railway:</strong> WireGuard، Hysteria2 و TUIC از لبه Railway UDP عمومی نمی‌گیرند؛ اما می‌توانی هر سه را به یک نود لینوکسی مستقل در بخش «مدیریت نودها» تخصیص بدهی. Agent روی نود Xray و sing-box را اجرا می‌کند و لینک اشتراک پس از آنلاین‌شدن نود به آدرس عمومی همان نود هدایت می‌شود. برای Hysteria2/TUIC، گواهی TLS معتبر و پورت UDP باز روی نود لازم است. برای SOCKS5 یا HTTP خود سرویس Railway فقط یک پورت TCP Proxy دارد.
               {capabilities.tcpProxy.configured
                 ? <div className="mt-1">TCP Proxy تنظیم‌شده: <span dir="ltr" className="font-mono">{capabilities.tcpProxy.publicHost}:{capabilities.tcpProxy.publicPort}</span> ← پورت داخلی <span className="font-mono">{capabilities.tcpProxy.internalPort}</span></div>
                 : <div className="mt-1">برای انتشار یک Proxy، ابتدا در Railway یک TCP Proxy بساز و سپس متغیرهای RAILWAY_TCP_PROXY_INTERNAL_PORT، PUBLIC_TCP_PROXY_HOST و PUBLIC_TCP_PROXY_PORT را مطابق همان نگاشت تنظیم کن.</div>}
