@@ -228,8 +228,28 @@ export function isSubExpired(user: UserRecord): boolean {
   return false;
 }
 
+const adminQuotaCache = new Map<number, { checkedAt: number; exceeded: boolean }>();
+
+function adminQuotaExceeded(adminId: number): boolean {
+  const cached = adminQuotaCache.get(adminId);
+  if (cached && Date.now() - cached.checkedAt < 5000) return cached.exceeded;
+  const row = db.prepare("SELECT a.data_limit, COALESCE(SUM(u.up + u.down), 0) AS used FROM admins a LEFT JOIN users u ON u.created_by = a.id WHERE a.id = ? GROUP BY a.id")
+    .get(adminId) as { data_limit: number; used: number } | undefined;
+  const exceeded = Boolean(row && row.data_limit > 0 && row.used >= row.data_limit);
+  adminQuotaCache.set(adminId, { checkedAt: Date.now(), exceeded });
+  return exceeded;
+}
+
+/** Stable signature used to reload Xray when a delegated admin quota is crossed or lifted. */
+export function getAdminQuotaState(): string {
+  const rows = db.prepare("SELECT a.id, a.data_limit, COALESCE(SUM(u.up + u.down), 0) AS used FROM admins a LEFT JOIN users u ON u.created_by = a.id WHERE a.data_limit > 0 GROUP BY a.id ORDER BY a.id").all() as
+    { id: number; data_limit: number; used: number }[];
+  return rows.filter(row => row.used >= row.data_limit).map(row => row.id).join(",");
+}
+
 export function isUserActive(user: UserWithInbounds): boolean {
   if (!user.enabled) return false;
+  if (user.created_by != null && adminQuotaExceeded(user.created_by)) return false;
   if (user.expire_at != null && Date.now() > user.expire_at) return false;
   if (user.data_limit > 0 && user.total >= user.data_limit) return false;
   return true;
