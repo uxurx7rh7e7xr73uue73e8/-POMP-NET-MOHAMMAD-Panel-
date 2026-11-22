@@ -97,6 +97,14 @@ export const api = {
     request(`/api/users/${id}/reset-traffic`, { method: "POST" }),
   rotateToken: (id: number) =>
     request<import("./types").User>(`/api/users/${id}/rotate-token`, { method: "POST" }),
+  renewUser: (id: number, days: number, note?: string) =>
+    request<{ ok: boolean; user: import("./types").User; expireAt: number }>(`/api/users/${id}/renew`, { method: "POST", body: JSON.stringify({ days, note }) }),
+  userRenewals: (id: number) =>
+    request<{ id: number; days: number; previous_expire_at: number | null; new_expire_at: number | null; actor: string; note: string; created_at: number }[]>(`/api/users/${id}/renewals`),
+  supportTickets: () => request<{ tickets: { id: number; user_id: number | null; user_email: string | null; telegram_id: string; subject: string; status: string; priority: string; created_at: number; updated_at: number; message_count: number }[] }>("/api/support/tickets"),
+  supportTicket: (id: number) => request<{ ticket: Record<string, unknown>; messages: { id: number; ticket_id: number; sender_type: string; sender_id: string; message: string; created_at: number }[] }>(`/api/support/tickets/${id}`),
+  replySupportTicket: (id: number, message: string) => request<{ ok: boolean; telegramDelivered: boolean }>(`/api/support/tickets/${id}/reply`, { method: "POST", body: JSON.stringify({ message }) }),
+  updateSupportTicket: (id: number, status: "open" | "pending" | "closed", priority?: "low" | "normal" | "high") => request<{ ok: boolean }>(`/api/support/tickets/${id}`, { method: "PATCH", body: JSON.stringify({ status, priority }) }),
   clientIps: (id: number) =>
     request<{ ip: string; last_seen: number }[]>(`/api/users/${id}/ips`),
   activity: () => request<import("./types").ActivityEntry[]>("/api/activity"),
