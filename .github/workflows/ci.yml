@@ -27,6 +27,8 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
+      - name: Validate remote node agent syntax
+        run: node --check node-agent/agent.mjs
       - name: Build production bundles
         run: npm run build
       - name: Verify Railway capability and TCP proxy mapping logic
@@ -99,6 +101,21 @@ jobs:
           curl -fsS -b /tmp/pompnet-cookies.txt \
             http://127.0.0.1:18080/api/me > /tmp/pompnet-me.json
           node -e 'const x=require("/tmp/pompnet-me.json"); if (!x.admin || x.admin.role !== "owner") process.exit(1)'
+          curl -fsS -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
+            -d '{"name":"ci-remote-node"}' \
+            http://127.0.0.1:18080/api/nodes > /tmp/pompnet-node-create.json
+          node -e 'const x=require("/tmp/pompnet-node-create.json"); if (!x.token || !x.id) process.exit(1)'
+          node_token=$(node -e 'process.stdout.write(require("/tmp/pompnet-node-create.json").token)')
+          curl -fsS -H "Authorization: Bearer $node_token" -H "Content-Type: application/json" \
+            -d '{"agentVersion":"ci-test","xrayVersion":"ci-xray","platform":"linux","arch":"x64","configHash":"ci-config"}' \
+            http://127.0.0.1:18080/api/node-agent/heartbeat > /tmp/pompnet-node-heartbeat.json
+          node -e 'const x=require("/tmp/pompnet-node-heartbeat.json"); if (!x.ok) process.exit(1)'
+          curl -fsS -H "Authorization: Bearer $node_token" \
+            http://127.0.0.1:18080/api/node-agent/config > /tmp/pompnet-node-config.json
+          node -e 'const x=require("/tmp/pompnet-node-config.json"); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !x.config.inbounds.some(i=>i.tag!=="api" && i.listen==="0.0.0.0")) process.exit(1)'
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/nodes > /tmp/pompnet-nodes.json
+          node -e 'const x=require("/tmp/pompnet-nodes.json"); if (!x.nodes || x.nodes[0].status!=="online") process.exit(1)'
+          echo "Authenticated remote-node registry, heartbeat and scoped Xray config API passed."
           docker exec pompnet-ci node -e '
             const net = require("node:net");
             const ports = [20000, 20001, 20002, 20003, 20004, 20012, 20013];
