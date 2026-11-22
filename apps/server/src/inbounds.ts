@@ -94,6 +94,7 @@ export interface CreateInboundInput {
   protocol: Protocol;
   transport: Transport;
   expireDays?: number;
+  host?: string;
 }
 
 export function createInbound(input: CreateInboundInput): Inbound {
@@ -104,16 +105,16 @@ export function createInbound(input: CreateInboundInput): Inbound {
   let port = config.inboundBasePort;
   while (used.has(port) && port < config.inboundBasePort + 10000) port++;
   if (used.has(port)) throw new Error("No free inbound port in configured range");
-  const transport: Transport = input.protocol === "wireguard" ? "udp"
+  const transport: Transport = input.protocol === "wireguard" || input.protocol === "hysteria2" || input.protocol === "tuic" ? "udp"
     : input.protocol === "socks" || input.protocol === "http" ? "tcp" : input.transport;
-  const path = input.protocol === "wireguard" || input.protocol === "socks" || input.protocol === "http"
+  const path = input.protocol === "wireguard" || input.protocol === "socks" || input.protocol === "http" || input.protocol === "hysteria2" || input.protocol === "tuic"
     ? ""
     : `/pompnet/${transport}-${nanoid(10)}`;
   const now = Date.now();
   const expiresAt = input.expireDays && input.expireDays > 0 ? now + input.expireDays * 86_400_000 : null;
   const info = db.prepare(
-    "INSERT INTO inbounds (tag, protocol, transport, port, path, host, enabled, created_at, expires_at) VALUES (?, ?, ?, ?, ?, '', 1, ?, ?)",
-  ).run(tag, input.protocol, transport, port, path, now, expiresAt);
+    "INSERT INTO inbounds (tag, protocol, transport, port, path, host, enabled, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)",
+  ).run(tag, input.protocol, transport, port, path, input.host || "", now, expiresAt);
   return getInbound(Number(info.lastInsertRowid))!;
 }
 
