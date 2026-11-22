@@ -23,6 +23,7 @@ import BotPage from "./pages/bot";
 import ActivityPage from "./pages/activity";
 import SettingsPage from "./pages/settings";
 import SupportPage from "./pages/support";
+import NodesPage from "./pages/nodes";
 import SubscriptionPage from "./pages/subscription";
 
 const PERM_ROUTE: Record<string, string> = {
@@ -166,6 +167,7 @@ export default function App() {
           }
         />
         <Route path="/support" element={<RequirePerm perm="users"><SupportPage /></RequirePerm>} />
+        <Route path="/nodes" element={<RequirePerm perm="settings"><NodesPage /></RequirePerm>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
