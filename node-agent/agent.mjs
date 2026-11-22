@@ -31,6 +31,7 @@ const singBoxConfigFile = path.join(dataDir, "sing-box.json");
 const pollMs = Math.max(10000, Number(process.env.POMP_NODE_POLL_MS || 30000));
 const agentVersion = "1.0.0";
 let child = null;
+let xrayExpected = false;
 let singBoxChild = null;
 let singBoxExpected = false;
 let currentSingBoxHash = "";
@@ -200,6 +201,13 @@ async function applyConfig() {
   nodeConfig.log = { ...(nodeConfig.log || {}), loglevel: "warning", access: path.join(dataDir, "access.log"), error: path.join(dataDir, "error.log") };
   const serialized = JSON.stringify(nodeConfig);
   const hash = result.configHash || sha256(serialized);
+  xrayExpected = (nodeConfig.inbounds || []).some(inbound => inbound.tag !== "api");
+  if (!xrayExpected) {
+    await stopXray();
+    currentHash = hash;
+    await startSingBox(result.singBoxConfig);
+    return hash;
+  }
   if (hash === currentHash && child && child.exitCode === null) { await startSingBox(result.singBoxConfig); return hash; }
 
   const temp = configFile + ".next";
@@ -225,12 +233,12 @@ async function applyConfig() {
 }
 
 async function heartbeat(error = "") {
-  const runtimeError = error || (!child || child.exitCode !== null ? "Xray process is not running" : (singBoxExpected && (!singBoxChild || singBoxChild.exitCode !== null) ? "sing-box process is not running" : ""));
+  const runtimeError = error || (xrayExpected && (!child || child.exitCode !== null) ? "Xray process is not running" : (singBoxExpected && (!singBoxChild || singBoxChild.exitCode !== null) ? "sing-box process is not running" : ""));
   return request("/api/node-agent/heartbeat", {
     method: "POST",
     body: JSON.stringify({
       agentVersion,
-      xrayVersion: process.env.XRAY_VERSION || "system-installed",
+      xrayVersion: process.env.XRAY_VERSION || (xrayExpected ? "system-installed" : "not-required"),
       platform: os.platform(),
       arch: os.arch(),
       configHash: currentHash,
