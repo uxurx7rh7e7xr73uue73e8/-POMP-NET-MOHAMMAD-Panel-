@@ -5,7 +5,7 @@ import { db } from "./db.js";
 import { config, publicHost } from "./config.js";
 import { listInbounds } from "./inbounds.js";
 import { buildUserLinks, subscriptionProfileTitle } from "./links.js";
-import { buildClashConfig, buildSingboxConfig } from "./sub-formats.js";
+import { buildClashConfig } from "./sub-formats.js";
 import {
   getUserByToken,
   markSubFirstSeen,
@@ -106,22 +106,6 @@ sub.get("/:token/clash", (req, res) => {
   res.setHeader("Content-Type", "text/yaml; charset=utf-8");
   res.setHeader("Profile-Title", Buffer.from(subscriptionProfileTitle(data.user, data.inbounds)).toString("base64"));
   res.send(buildClashConfig(host, data.user, data.inbounds));
-});
-
-sub.get("/:token/singbox", (req, res) => {
-  const host = publicHost(req.headers.host);
-  const data = rawLinks(req.params.token, host);
-  if (!data) {
-    res.status(404).send("not found");
-    return;
-  }
-  if (data.expired) {
-    res.status(410).send("expired");
-    return;
-  }
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Profile-Title", Buffer.from(subscriptionProfileTitle(data.user, data.inbounds)).toString("base64"));
-  res.send(buildSingboxConfig(host, data.user, data.inbounds));
 });
 
 sub.get("/:token", (req, res) => {
