@@ -16,8 +16,8 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
-import { seedInbounds, expireInbounds } from "./inbounds.js";
-import { seedDefaultClient, getAdminQuotaState } from "./users.js";
+import { seedInbounds, expireInbounds, listEnabledInbounds } from "./inbounds.js";
+import { seedDefaultClient, listUsers, isUserActive } from "./users.js";
 import { seedDefaultRouting } from "./routing.js";
 import { api } from "./routes.js";
 import { sub, setSubStaticRoot } from "./sub.js";
@@ -118,18 +118,30 @@ setInterval(() => {
   }
 }, 20_000);
 
-let lastAdminQuotaState = getAdminQuotaState();
+function engineConfigState(): string {
+  const inbounds = listEnabledInbounds().map((ib) => ({
+    id: ib.id, protocol: ib.protocol, transport: ib.transport, port: ib.port, path: ib.path, host: ib.host,
+  }));
+  const users = listUsers().map((user) => ({
+    id: user.id, email: user.email, uuid: user.uuid, password: user.password,
+    enabled: user.enabled, active: isUserActive(user), inbound_ids: user.inbound_ids,
+    fingerprint: user.fingerprint, alpn: user.alpn,
+  }));
+  return JSON.stringify({ inbounds, users });
+}
+
+let lastEngineConfigState = engineConfigState();
 setInterval(() => {
   try {
-    const nextState = getAdminQuotaState();
-    if (nextState !== lastAdminQuotaState) {
-      lastAdminQuotaState = nextState;
-      console.log("[POMP NET] Delegated administrator quota state changed; reloading Xray.");
+    const nextState = engineConfigState();
+    if (nextState !== lastEngineConfigState) {
+      lastEngineConfigState = nextState;
+      console.log("[POMP NET] Active user/inbound configuration changed; reloading Xray and sing-box.");
       restartXray();
       restartSingBox();
     }
   } catch (error) {
-    console.error("[POMP NET admin quota enforcement]", error);
+    console.error("[POMP NET engine config monitor]", error);
   }
 }, 20_000);
 
