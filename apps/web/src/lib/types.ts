@@ -1,4 +1,4 @@
-export type Protocol = "vless" | "vmess" | "trojan" | "wireguard" | "socks" | "http";
+export type Protocol = "vless" | "vmess" | "trojan" | "wireguard" | "socks" | "http" | "hysteria2" | "tuic";
 export type Transport = "ws" | "xhttp" | "httpupgrade" | "udp" | "tcp";
 export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
 
@@ -13,6 +13,8 @@ export interface RuntimeCapabilities {
     note: string;
   };
   wireguardPublicUdp: boolean;
+  publicUdpProtocols: boolean;
+  singBox: { tlsConfigured: boolean; binaryAvailable: boolean; version: string };
 }
 
 export type Permission =
