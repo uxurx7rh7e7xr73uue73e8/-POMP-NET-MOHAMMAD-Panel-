@@ -201,7 +201,7 @@ function resolveAddress(host: string): string {
   return clean || host;
 }
 
-function activeNodeTargets(inboundId: number): { name: string; host: string; port: number | null }[] {
+function activeNodeTargets(inboundId: number): { name: string; host: string }[] {
   const rows = db.prepare("SELECT name, endpoint, inbound_ids, last_seen FROM managed_nodes WHERE enabled = 1 AND status = 'online' AND last_seen > ?")
     .all(Date.now() - 90_000) as { name: string; endpoint: string; inbound_ids: string; last_seen: number }[];
   return rows.flatMap((row) => {
@@ -211,7 +211,7 @@ function activeNodeTargets(inboundId: number): { name: string; host: string; por
     if (ids.length > 0 && !ids.includes(inboundId)) return [];
     try {
       const url = new URL(row.endpoint);
-      return [{ name: row.name, host: url.hostname, port: url.port ? Number(url.port) : null }];
+      return [{ name: row.name, host: url.hostname }];
     } catch {
       return [];
     }
@@ -239,9 +239,9 @@ export function buildUserLinks(
       // Healthy authenticated nodes publish their own endpoint for each
       // explicitly assigned Xray inbound. This also provides a real fallback
       // for WireGuard when the controller itself runs on Railway (no public UDP).
-      for (const node of activeNodeTargets(inbound.id)) {
+      if (["vless", "vmess", "trojan", "wireguard", "socks", "http"].includes(inbound.protocol)) for (const node of activeNodeTargets(inbound.id)) {
         const nodeInbound = { ...inbound, id: -inbound.id, tag: `${inbound.tag}-${node.name}` };
-        const nodePort = inbound.protocol === "wireguard" ? inbound.port : (node.port ?? inbound.port);
+        const nodePort = inbound.port;
         links.push({
           tag: inboundDisplayLabel(nodeInbound, user, inbounds),
           protocol: inbound.protocol,
