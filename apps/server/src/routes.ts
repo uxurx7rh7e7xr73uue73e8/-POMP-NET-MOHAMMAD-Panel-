@@ -46,6 +46,7 @@ import {
   summarize,
 } from "./users.js";
 import { getClientIps, restartXray, getServerTraffic, getInboundTraffic } from "./xray.js";
+import { restartSingBox } from "./singbox.js";
 import { listActivity, logActivity, clearActivity } from "./activity.js";
 import { exportData, importData } from "./backup.js";
 import { loginRateLimit } from "./ratelimit.js";
@@ -59,6 +60,8 @@ import { DOMAIN_PRESETS, COUNTRY_IP_PRESETS } from "./routing-presets.js";
 import { getBotConfig, saveBotConfig, testBot, sendBroadcastToLinkedUsers, sendTelegramToChat } from "./bot.js";
 
 export const api = Router();
+
+function restartTunnelEngines(): void { restartXray(); restartSingBox(); }
 
 const trafficReset = z.enum(["never", "daily", "weekly", "monthly"]);
 const permissionEnum = z.enum([
