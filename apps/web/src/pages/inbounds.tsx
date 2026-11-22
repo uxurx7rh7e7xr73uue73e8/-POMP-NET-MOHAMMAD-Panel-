@@ -16,6 +16,8 @@ const protocolAccent: Record<string, string> = {
   wireguard: "#35d6a1",
   socks: "#168cff",
   http: "#8b35ff",
+  hysteria2: "#35d6a1",
+  tuic: "#168cff",
 };
 
 export default function InboundsPage() {
@@ -26,6 +28,7 @@ export default function InboundsPage() {
   const [protocol, setProtocol] = useState<Protocol>("vless");
   const [transport, setTransport] = useState<Transport>("xhttp");
   const [expireDays, setExpireDays] = useState(0);
+  const [serverName, setServerName] = useState("");
 
   const { data: capabilities } = useQuery({ queryKey: ["runtime-capabilities"], queryFn: api.capabilities });
 
@@ -86,13 +89,13 @@ export default function InboundsPage() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ tag, protocol, transport: protocol === "wireguard" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays });
+    create.mutate({ tag, protocol, transport: protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays, serverName: serverName.trim() || undefined });
   };
 
   const isReachable = (ib: Inbound) => {
     if (!capabilities) return false;
     if (!capabilities.railway) return true;
-    if (ib.protocol === "wireguard") return false;
+    if (ib.protocol === "wireguard" || ib.protocol === "hysteria2" || ib.protocol === "tuic") return capabilities.publicUdpProtocols;
     if (ib.protocol === "socks" || ib.protocol === "http") {
       return capabilities.tcpProxy.configured && capabilities.tcpProxy.internalPort === ib.port;
     }
@@ -144,13 +147,13 @@ export default function InboundsPage() {
               <select value={protocol} onChange={(e) => setProtocol(e.target.value as Protocol)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
-                <option value="wireguard">WireGuard · UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
+                <option value="wireguard">WireGuard · UDP</option><option value="hysteria2" disabled={!capabilities?.publicUdpProtocols}>Hysteria2 · sing-box UDP</option><option value="tuic" disabled={!capabilities?.publicUdpProtocols}>TUIC · sing-box UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
               ترنسپورت
               <select value={protocol === "wireguard" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport}
-                disabled={protocol === "wireguard" || protocol === "socks" || protocol === "http"}
+                disabled={protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" || protocol === "socks" || protocol === "http"}
                 onChange={(e) => setTransport(e.target.value as Transport)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text disabled:opacity-60">
                 <option value="xhttp">XHTTP</option><option value="ws">WebSocket</option><option value="httpupgrade">HTTP Upgrade</option>
@@ -162,6 +165,7 @@ export default function InboundsPage() {
               <input type="number" min={0} max={3650} value={expireDays} onChange={(e) => setExpireDays(Number(e.target.value))}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text" />
             </label>
+            {(protocol === "hysteria2" || protocol === "tuic") && <label className="space-y-1 text-xs text-text/70">دامنه TLS / SNI<input value={serverName} onChange={e=>setServerName(e.target.value)} placeholder="vpn.example.com" required className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text" /><span className="text-[10px] text-text/50">باید با گواهی TLS تنظیم‌شده روی سرور مطابقت داشته باشد.</span></label>}
             <div className="flex items-end">
               <button type="submit" disabled={create.isPending || !tag.trim()}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
