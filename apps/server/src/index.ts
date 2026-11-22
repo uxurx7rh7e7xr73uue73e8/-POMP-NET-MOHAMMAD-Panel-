@@ -28,6 +28,7 @@ import { rateLimit } from "./ratelimit.js";
 import { sendDailyBackup, startTelegramBot, notifyExpiringUsers } from "./bot.js";
 import { refreshIpInfo } from "./ipinfo.js";
 import { SIDERAIL_SIGNATURE, watermark } from "./brand.js";
+import { singBoxStatus } from "./singbox.js";
 
 console.log(SIDERAIL_SIGNATURE);
 
@@ -50,7 +51,10 @@ app.use(cookieParser());
 app.set("trust proxy", true);
 app.get("/healthz", (_req, res) => {
   const xray = isRunning();
-  res.status(xray ? 200 : 503).json({ ok: xray, xray, xrayVersion: xrayVersion(), service: "POMP NET MOHAMMAD — QUANTUM NEXUS", ...watermark() });
+  const singBox = singBoxStatus();
+  const singBoxHealthy = singBox.inbounds === 0 || singBox.running;
+  const ok = xray && singBoxHealthy;
+  res.status(ok ? 200 : 503).json({ ok, xray, xrayVersion: xrayVersion(), singBox, service: "POMP NET MOHAMMAD — QUANTUM NEXUS", ...watermark() });
 });
 
 app.use("/api", rateLimit, api);
