@@ -33,20 +33,6 @@ function inboundClients(inbound: Inbound, users: UserWithInbounds[]) {
 
 function protocolSettings(inbound: Inbound, users: UserWithInbounds[]) {
   const clients = inboundClients(inbound, users);
-  if (inbound.protocol === "socks") {
-    return {
-      auth: "password",
-      accounts: clients.map((client) => ({ user: client.email, pass: client.password })),
-      udp: true,
-    };
-  }
-  if (inbound.protocol === "http") {
-    return {
-      accounts: clients.map((client) => ({ user: client.email, pass: client.password })),
-      allowTransparent: false,
-      userLevel: 0,
-    };
-  }
   if (inbound.protocol === "vless") {
     return {
       clients: clients.map((c) => ({ id: c.uuid, email: c.email, flow: "" })),
