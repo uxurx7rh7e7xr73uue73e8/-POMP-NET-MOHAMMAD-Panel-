@@ -46,7 +46,7 @@ import {
   summarize,
 } from "./users.js";
 import { getClientIps, restartXray, getServerTraffic, getInboundTraffic } from "./xray.js";
-import { restartSingBox } from "./singbox.js";
+import { buildSingBoxServerConfig, restartSingBox } from "./singbox.js";
 import { listActivity, logActivity, clearActivity } from "./activity.js";
 import { exportData, importData } from "./backup.js";
 import { loginRateLimit } from "./ratelimit.js";
@@ -188,13 +188,15 @@ api.post("/node-agent/heartbeat", (req, res) => {
 api.get("/node-agent/config", (req, res) => {
   const node = authenticateNode(req, res);
   if (!node) return;
-  const cfg = buildXrayConfig({ remoteNode: true, inboundIds: node.inbound_ids.length ? node.inbound_ids : undefined }) as Record<string, any>;
+  const inboundIds = node.inbound_ids.length ? node.inbound_ids : undefined;
+  const cfg = buildXrayConfig({ remoteNode: true, inboundIds }) as Record<string, any>;
   cfg.log = { ...(cfg.log || {}), loglevel: "warning", access: "access.log", error: "error.log" };
   cfg.inbounds = (cfg.inbounds as Record<string, any>[]).map((inbound) =>
     inbound.tag === "api" ? inbound : { ...inbound, listen: "0.0.0.0" });
-  const serialized = JSON.stringify(cfg);
+  const singBoxConfig = buildSingBoxServerConfig({ remoteNode: true, inboundIds });
+  const serialized = JSON.stringify({ config: cfg, singBoxConfig });
   res.setHeader("Cache-Control", "no-store");
-  res.json({ config: cfg, configHash: createHash("sha256").update(serialized).digest("hex"), generatedAt: Date.now() });
+  res.json({ config: cfg, singBoxConfig, configHash: createHash("sha256").update(serialized).digest("hex"), generatedAt: Date.now() });
 });
 
 api.use(authGuard);
@@ -227,8 +229,12 @@ api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) =
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
   if (body.data.protocol === "hysteria2" || body.data.protocol === "tuic") {
-    const setupError = singBoxSetupError(body.data.serverName);
-    if (setupError) { res.status(400).json({ error: setupError }); return; }
+    if (getRuntimeCapabilities().railway) {
+      if (!body.data.serverName) { res.status(400).json({ error: "Set the TLS server name before assigning this UDP inbound to a remote node." }); return; }
+    } else {
+      const setupError = singBoxSetupError(body.data.serverName);
+      if (setupError) { res.status(400).json({ error: setupError }); return; }
+    }
     body.data.transport = "udp";
   }
   try {
@@ -479,9 +485,9 @@ api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
     inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
-  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http"]);
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]);
   if (body.data.inboundIds.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
-    res.status(400).json({ error: "Remote Xray nodes support VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP. Hysteria2/TUIC require the sing-box node runtime." }); return;
+    res.status(400).json({ error: "Remote nodes support VLESS, VMess, Trojan, WireGuard, SOCKS, HTTP, Hysteria2 and TUIC. Hysteria2/TUIC require sing-box on the node." }); return;
   }
   if (body.data.endpoint) {
     try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
@@ -505,7 +511,7 @@ api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
   if (!body.success) { res.status(400).json({ error: "invalid node update" }); return; }
   const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http"]);
   if (body.data.inboundIds?.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
-    res.status(400).json({ error: "Remote Xray nodes support VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP. Hysteria2/TUIC are not supported by this Xray agent." }); return;
+    res.status(400).json({ error: "Remote nodes support VLESS, VMess, Trojan, WireGuard, SOCKS, HTTP, Hysteria2 and TUIC. Hysteria2/TUIC require sing-box on the node." }); return;
   }
   const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as { name: string; endpoint: string; inbound_ids: string; enabled: number } | undefined;
   if (!current) { res.status(404).json({ error: "node not found" }); return; }
