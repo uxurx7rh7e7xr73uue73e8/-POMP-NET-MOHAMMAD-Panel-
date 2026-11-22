@@ -28,7 +28,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Validate remote node agent syntax
-        run: node --check node-agent/agent.mjs
+        run: |
+          node --check node-agent/agent.mjs
+          bash -n node-agent/install.sh
       - name: Build production bundles
         run: npm run build
       - name: Verify Railway capability and TCP proxy mapping logic
