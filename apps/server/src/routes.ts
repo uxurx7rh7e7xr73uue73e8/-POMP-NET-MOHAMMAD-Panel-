@@ -9,7 +9,9 @@
  * Watermark: sr-icubaby-2025-9f4c1a7e
  */
 import { Router } from "express";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { getRuntimeCapabilities } from "./railway-capabilities.js";
+import { buildXrayConfig } from "./xray-config.js";
 import { z } from "zod";
 import {
   isSetupDone,
@@ -143,6 +145,52 @@ api.post("/login", loginRateLimit, (req, res) => {
 api.post("/logout", (_req, res) => {
   res.clearCookie("sr_token");
   res.json({ ok: true });
+});
+
+function nodeTokenHash(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function authenticateNode(req: import("express").Request, res: import("express").Response): { id: number; inbound_ids: number[] } | null {
+  const token = req.header("authorization")?.replace(/^Bearer\\s+/i, "") || "";
+  if (!token || token.length < 40) { res.status(401).json({ error: "node authentication required" }); return null; }
+  const hash = nodeTokenHash(token);
+  const row = db.prepare("SELECT id, inbound_ids, enabled FROM managed_nodes WHERE token_hash = ?").get(hash) as
+    { id: number; inbound_ids: string; enabled: number } | undefined;
+  if (!row || !row.enabled) { res.status(401).json({ error: "invalid or disabled node token" }); return null; }
+  let inboundIds: number[] = [];
+  try { inboundIds = JSON.parse(row.inbound_ids) as number[]; } catch { inboundIds = []; }
+  return { id: row.id, inbound_ids: inboundIds };
+}
+
+// Machine-to-machine endpoints use per-node bearer tokens, never the owner session cookie.
+api.post("/node-agent/heartbeat", (req, res) => {
+  const node = authenticateNode(req, res);
+  if (!node) return;
+  const body = z.object({
+    agentVersion: z.string().max(64).optional().default(""),
+    xrayVersion: z.string().max(64).optional().default(""),
+    platform: z.string().max(64).optional().default(""),
+    arch: z.string().max(64).optional().default(""),
+    configHash: z.string().max(128).optional().default(""),
+    error: z.string().max(1000).optional().default(""),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid heartbeat" }); return; }
+  db.prepare("UPDATE managed_nodes SET status = ?, last_seen = ?, agent_version = ?, xray_version = ?, platform = ?, arch = ?, config_hash = ?, last_error = ?, updated_at = ? WHERE id = ?")
+    .run(body.data.error ? "error" : "online", Date.now(), body.data.agentVersion, body.data.xrayVersion, body.data.platform, body.data.arch, body.data.configHash, body.data.error, Date.now(), node.id);
+  res.json({ ok: true, serverTime: Date.now(), configHash: body.data.configHash });
+});
+
+api.get("/node-agent/config", (req, res) => {
+  const node = authenticateNode(req, res);
+  if (!node) return;
+  const cfg = buildXrayConfig({ remoteNode: true, inboundIds: node.inbound_ids.length ? node.inbound_ids : undefined }) as Record<string, any>;
+  cfg.log = { ...(cfg.log || {}), loglevel: "warning", access: "access.log", error: "error.log" };
+  cfg.inbounds = (cfg.inbounds as Record<string, any>[]).map((inbound) =>
+    inbound.tag === "api" ? inbound : { ...inbound, listen: "0.0.0.0" });
+  const serialized = JSON.stringify(cfg);
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ config: cfg, configHash: createHash("sha256").update(serialized).digest("hex"), generatedAt: Date.now() });
 });
 
 api.use(authGuard);
@@ -405,6 +453,65 @@ api.post("/settings/credentials", requirePermission("settings"), (req: AuthedReq
   // cookie for the admin who made the change so they stay signed in.
   setAuthCookie(res, signToken({ id: req.admin!.id }));
   logActivity(req.admin!.username, "credentials_change", "");
+  res.json({ ok: true });
+});
+
+api.get("/nodes", requirePermission("settings"), (_req, res) => {
+  const nodes = db.prepare("SELECT id, name, endpoint, inbound_ids, enabled, status, last_seen, agent_version, xray_version, platform, arch, config_hash, last_error, created_at, updated_at FROM managed_nodes ORDER BY id DESC").all() as Record<string, unknown>[];
+  res.json({ nodes: nodes.map((node) => ({ ...node, inbound_ids: JSON.parse(String(node.inbound_ids || "[]")) })) });
+});
+
+api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
+  const body = z.object({
+    name: z.string().trim().min(2).max(64),
+    endpoint: z.string().trim().url().max(255).optional().default(""),
+    inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
+  if (body.data.endpoint) {
+    try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
+    catch { res.status(400).json({ error: "node endpoint must use HTTPS" }); return; }
+  }
+  const token = randomBytes(48).toString("base64url");
+  const now = Date.now();
+  const info = db.prepare("INSERT INTO managed_nodes (name, endpoint, token_hash, inbound_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(body.data.name, body.data.endpoint, nodeTokenHash(token), JSON.stringify(body.data.inboundIds), now, now);
+  logActivity(req.admin!.username, "node_create", body.data.name);
+  res.status(201).json({ id: Number(info.lastInsertRowid), name: body.data.name, endpoint: body.data.endpoint, token, installCommand: "Use the POMP NET node-agent files and set POMP_NODE_ID and POMP_NODE_TOKEN. The token is shown only once." });
+});
+
+api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
+  const body = z.object({
+    name: z.string().trim().min(2).max(64).optional(),
+    endpoint: z.string().trim().url().max(255).optional(),
+    inboundIds: z.array(z.number().int().positive()).max(200).optional(),
+    enabled: z.boolean().optional(),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid node update" }); return; }
+  const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as Record<string, unknown> | undefined;
+  if (!current) { res.status(404).json({ error: "node not found" }); return; }
+  if (body.data.endpoint) {
+    try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
+    catch { res.status(400).json({ error: "node endpoint must use HTTPS" }); return; }
+  }
+  db.prepare("UPDATE managed_nodes SET name=?, endpoint=?, inbound_ids=?, enabled=?, status=CASE WHEN ?=0 THEN 'disabled' ELSE status END, updated_at=? WHERE id=?")
+    .run(body.data.name ?? current.name, body.data.endpoint ?? current.endpoint, JSON.stringify(body.data.inboundIds ?? JSON.parse(String(current.inbound_ids || "[]"))), body.data.enabled === undefined ? current.enabled : Number(body.data.enabled), body.data.enabled === undefined ? Number(current.enabled) : Number(body.data.enabled), Date.now(), Number(req.params.id));
+  logActivity(req.admin!.username, "node_update", String(req.params.id));
+  res.json({ ok: true });
+});
+
+api.post("/nodes/:id/rotate-token", requireOwner, (req: AuthedRequest, res) => {
+  const token = randomBytes(48).toString("base64url");
+  const result = db.prepare("UPDATE managed_nodes SET token_hash=?, status='pending', updated_at=? WHERE id=?").run(nodeTokenHash(token), Date.now(), Number(req.params.id));
+  if (!result.changes) { res.status(404).json({ error: "node not found" }); return; }
+  logActivity(req.admin!.username, "node_token_rotate", String(req.params.id));
+  res.json({ token });
+});
+
+api.delete("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
+  const result = db.prepare("DELETE FROM managed_nodes WHERE id=?").run(Number(req.params.id));
+  if (!result.changes) { res.status(404).json({ error: "node not found" }); return; }
+  logActivity(req.admin!.username, "node_delete", String(req.params.id));
   res.json({ ok: true });
 });
 
