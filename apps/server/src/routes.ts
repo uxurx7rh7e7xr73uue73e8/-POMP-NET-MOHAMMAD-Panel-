@@ -502,7 +502,7 @@ api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
   if (body.data.inboundIds?.some((id) => getInbound(id)?.protocol !== "wireguard")) {
     res.status(400).json({ error: "The current remote node agent supports WireGuard inbounds only." }); return;
   }
-  const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as Record<string, unknown> | undefined;
+  const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as { name: string; endpoint: string; inbound_ids: string; enabled: number } | undefined;
   if (!current) { res.status(404).json({ error: "node not found" }); return; }
   if (body.data.endpoint) {
     try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
