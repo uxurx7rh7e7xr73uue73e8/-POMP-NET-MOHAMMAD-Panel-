@@ -25,6 +25,27 @@ function tunnelDebug(event: string, details: Record<string, unknown> = {}): void
 xhttpProxy.on("error", () => {});
 
 const portToIp = new Map<number, { ip: string; ts: number }>();
+const activeTunnels = new Set<Socket>();
+const drainCallbacks = new Set<() => void>();
+let tunnelMaintenance = false;
+
+export function beginTunnelMaintenance(callback: () => void): void {
+  tunnelMaintenance = true;
+  if (activeTunnels.size === 0) callback();
+  else drainCallbacks.add(callback);
+}
+
+export function endTunnelMaintenance(): void {
+  tunnelMaintenance = false;
+}
+
+function releaseTunnel(socket: Socket): void {
+  activeTunnels.delete(socket);
+  if (activeTunnels.size === 0) {
+    for (const callback of drainCallbacks) callback();
+    drainCallbacks.clear();
+  }
+}
 
 export function realIpForPort(port: number): string | null {
   const entry = portToIp.get(port);
@@ -94,6 +115,15 @@ function ipAllowed(inbound: Inbound, ip: string): boolean {
 }
 
 function pipeToXray(req: IncomingMessage, clientSocket: Socket, head: Buffer, inbound: Inbound) {
+  activeTunnels.add(clientSocket);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    releaseTunnel(clientSocket);
+  };
+  clientSocket.once("close", release);
+  clientSocket.once("error", release);
   const realIp = clientIp(req);
   tunnelDebug("matched inbound", { protocol: inbound.protocol, transport: inbound.transport, port: inbound.port, method: req.method });
   const upstream = net.connect(inbound.port, "127.0.0.1", () => {
@@ -110,7 +140,9 @@ function pipeToXray(req: IncomingMessage, clientSocket: Socket, head: Buffer, in
     clientSocket.pipe(upstream);
     upstream.pipe(clientSocket);
   });
+  upstream.once("close", release);
   const kill = (source: string, error?: Error) => {
+    release();
     tunnelDebug("socket closed", { source, code: (error as NodeJS.ErrnoException | undefined)?.code || "" });
     upstream.destroy();
     clientSocket.destroy();
@@ -122,6 +154,10 @@ function pipeToXray(req: IncomingMessage, clientSocket: Socket, head: Buffer, in
 
 export function attachTunnel(server: Server): void {
   server.on("upgrade", (req, socket, head) => {
+    if (tunnelMaintenance) {
+      socket.end("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nRetry-After: 2\r\nContent-Length: 0\r\n\r\n");
+      return;
+    }
     const inbound = matchInbound(req.url);
     if (!inbound) {
       tunnelDebug("no inbound matched", { method: req.method, path: (req.url || "").split("?")[0] });
