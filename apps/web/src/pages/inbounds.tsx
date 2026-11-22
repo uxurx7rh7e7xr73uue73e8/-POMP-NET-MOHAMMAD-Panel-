@@ -95,7 +95,8 @@ export default function InboundsPage() {
   const isReachable = (ib: Inbound) => {
     if (!capabilities) return false;
     if (!capabilities.railway) return true;
-    if (ib.protocol === "wireguard" || ib.protocol === "hysteria2" || ib.protocol === "tuic") return capabilities.publicUdpProtocols;
+    if (ib.protocol === "wireguard") return capabilities.wireguardPublicUdp;
+    if (ib.protocol === "hysteria2" || ib.protocol === "tuic") return capabilities.publicUdpProtocols && capabilities.singBox.tlsConfigured && capabilities.singBox.binaryAvailable && (capabilities.singBoxStatus.inbounds === 0 || capabilities.singBoxStatus.running);
     if (ib.protocol === "socks" || ib.protocol === "http") {
       return capabilities.tcpProxy.configured && capabilities.tcpProxy.internalPort === ib.port;
     }
@@ -109,6 +110,11 @@ export default function InboundsPage() {
         <div>
           <h1 className="font-heading text-3xl">{t("inbounds")}</h1>
           <p className="text-sm font-base text-text/60">مدیریت ورودی‌های واقعی Xray، پورت‌ها و زمان اعتبار</p>
+          {capabilities && !capabilities.railway && (!capabilities.singBox.tlsConfigured || !capabilities.singBox.binaryAvailable) && (
+            <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
+              برای فعال‌سازی Hysteria2 و TUIC باید sing-box نصب باشد و متغیرهای SINGBOX_TLS_CERT_FILE و SINGBOX_TLS_KEY_FILE به گواهی و کلید معتبر TLS اشاره کنند. وضعیت موتور: {capabilities.singBox.binaryAvailable ? "نصب است" : "نصب نیست"} · گواهی: {capabilities.singBox.tlsConfigured ? "آماده" : "تنظیم نشده"}.
+            </div>
+          )}
           {capabilities?.railway && (
             <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
               <strong>محدودیت شبکه Railway:</strong> WireGuard به UDP عمومی نیاز دارد و از این سرویس قابل انتشار نیست. برای SOCKS5 یا HTTP فقط یک پورت TCP با TCP Proxy قابل انتشار است.
@@ -147,7 +153,7 @@ export default function InboundsPage() {
               <select value={protocol} onChange={(e) => setProtocol(e.target.value as Protocol)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
-                <option value="wireguard">WireGuard · UDP</option><option value="hysteria2" disabled={!capabilities?.publicUdpProtocols}>Hysteria2 · sing-box UDP</option><option value="tuic" disabled={!capabilities?.publicUdpProtocols}>TUIC · sing-box UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
+                <option value="wireguard">WireGuard · UDP</option><option value="hysteria2" disabled={!capabilities?.publicUdpProtocols || !capabilities?.singBox.tlsConfigured || !capabilities?.singBox.binaryAvailable}>Hysteria2 · sing-box UDP</option><option value="tuic" disabled={!capabilities?.publicUdpProtocols || !capabilities?.singBox.tlsConfigured || !capabilities?.singBox.binaryAvailable}>TUIC · sing-box UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
