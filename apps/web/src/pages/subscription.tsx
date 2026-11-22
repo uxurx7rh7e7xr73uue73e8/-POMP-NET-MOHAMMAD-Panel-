@@ -314,7 +314,6 @@ export default function SubscriptionPage() {
           <div className="grid grid-cols-3 gap-2">
             <CopyButton value={subUrl} label="V2ray" className="w-full" />
             <CopyButton value={`${subUrl}/clash`} label="Clash" className="w-full" />
-            <CopyButton value={`${subUrl}/singbox`} label="Sing-box" className="w-full" />
           </div>
           <p className="text-center text-[11px] font-base text-text/40">{t("copyHint")}</p>
         </div>
