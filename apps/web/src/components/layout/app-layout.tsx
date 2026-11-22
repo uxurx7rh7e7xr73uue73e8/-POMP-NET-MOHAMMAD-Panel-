@@ -15,6 +15,7 @@ import {
   Bot,
   Languages,
   MessageSquare,
+  Server,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
@@ -46,6 +47,7 @@ const nav: {
   { to: "/", labelKey: "dashboard", icon: LayoutDashboard, end: true, perm: "dashboard" },
   { to: "/users", labelKey: "users", icon: Users, end: false, perm: "users" },
   { to: "/support", labelKey: "users", customLabel: "پشتیبانی و تیکت‌ها", icon: MessageSquare, end: false, perm: "users" },
+  { to: "/nodes", labelKey: "settings", customLabel: "مدیریت نودها", icon: Server, end: false, perm: "settings", ownerOnly: true },
   { to: "/inbounds", labelKey: "inbounds", icon: Router, end: false, perm: "inbounds" },
   { to: "/routing", labelKey: "routing", icon: Ban, end: false, perm: "routing" },
   { to: "/activity", labelKey: "activityLog", icon: ScrollText, end: false, perm: "activity" },
