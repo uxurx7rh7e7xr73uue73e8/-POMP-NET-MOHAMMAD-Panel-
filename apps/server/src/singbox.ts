@@ -14,10 +14,12 @@ let restartTimer: NodeJS.Timeout | null = null;
 let startedAt = 0;
 let lastError = "";
 
-function udpInbounds() {
+function udpInbounds(remoteNode = false, inboundIds?: number[]) {
   const railway = process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_ID;
-  if (railway) return [];
-  return listEnabledInbounds().filter((inbound) => inbound.protocol === "hysteria2" || inbound.protocol === "tuic");
+  if (railway && !remoteNode) return [];
+  return listEnabledInbounds()
+    .filter((inbound) => inbound.protocol === "hysteria2" || inbound.protocol === "tuic")
+    .filter((inbound) => inboundIds === undefined || inboundIds.includes(inbound.id));
 }
 
 function serverName(inbound: ReturnType<typeof udpInbounds>[number]): string {
@@ -36,8 +38,8 @@ export function singBoxSetupError(host = config.publicDomain): string | null {
   return null;
 }
 
-export function buildSingBoxServerConfig() {
-  const inbounds = udpInbounds();
+export function buildSingBoxServerConfig(options: { remoteNode?: boolean; inboundIds?: number[] } = {}) {
+  const inbounds = udpInbounds(!!options.remoteNode, options.inboundIds);
   if (!inbounds.length) return null;
   const users = listUsers();
   const generated = inbounds.map((inbound) => {
@@ -45,8 +47,8 @@ export function buildSingBoxServerConfig() {
     const tls = {
       enabled: true,
       server_name: serverName(inbound),
-      certificate_path: config.singBoxTlsCert,
-      key_path: config.singBoxTlsKey,
+      certificate_path: options.remoteNode ? "__POMP_NODE_TLS_CERT_FILE__" : config.singBoxTlsCert,
+      key_path: options.remoteNode ? "__POMP_NODE_TLS_KEY_FILE__" : config.singBoxTlsKey,
       alpn: ["h3"],
     };
     if (inbound.protocol === "hysteria2") {
