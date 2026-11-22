@@ -36,6 +36,24 @@ read -r -p "TLS private-key path for VLESS/VMess/Trojan (leave empty if not used
 if [ -n "$TLS_CERT" ] || [ -n "$TLS_KEY" ]; then
   if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then echo "Both TLS certificate and key files must exist."; exit 1; fi
 fi
+SING_BOX_BIN="/usr/local/bin/sing-box"
+if [ ! -x "$SING_BOX_BIN" ]; then
+  case "$(uname -m)" in
+    x86_64|amd64) SING_ARCH="amd64" ;;
+    aarch64|arm64) SING_ARCH="arm64" ;;
+    armv7l|armv7) SING_ARCH="armv7" ;;
+    *) echo "Unsupported CPU architecture for automatic sing-box install: $(uname -m)"; exit 1 ;;
+  esac
+  TMP_SING="$(mktemp -d)"
+  trap 'rm -rf "$TMP_SING"' EXIT
+  SING_URL="https://github.com/SagerNet/sing-box/releases/download/v1.14.4/sing-box-1.14.4-linux-$SING_ARCH.tar.gz"
+  curl -fsSL "$SING_URL" -o "$TMP_SING/sing-box.tar.gz"
+  tar -xzf "$TMP_SING/sing-box.tar.gz" -C "$TMP_SING"
+  SING_SOURCE="$(find "$TMP_SING" -type f -name sing-box -print -quit)"
+  if [ -z "$SING_SOURCE" ]; then echo "Could not locate the downloaded sing-box executable."; exit 1; fi
+  install -m 755 "$SING_SOURCE" "$SING_BOX_BIN"
+fi
+"$SING_BOX_BIN" version >/dev/null
 if [ ! -x "$XRAY_BIN" ]; then
   echo "Xray executable not found at $XRAY_BIN. Install Xray-core first."
   exit 1
@@ -53,6 +71,8 @@ POMP_NODE_TOKEN=$NODE_TOKEN
 POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
 XRAY_BIN=$XRAY_BIN
+SING_BOX_BIN=$SING_BOX_BIN
+SING_BOX_VERSION=1.14.4
 POMP_NODE_TLS_CERT_FILE=$TLS_CERT
 POMP_NODE_TLS_KEY_FILE=$TLS_KEY
 EOF
