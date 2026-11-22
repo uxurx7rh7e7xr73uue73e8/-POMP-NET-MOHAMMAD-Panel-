@@ -62,12 +62,18 @@ jobs:
         run: docker build --pull -t pompnet-quantum-nexus:ci .
       - name: Start isolated container
         run: |
+          mkdir -p /tmp/pompnet-certs
+          openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/pompnet-certs/server.key -out /tmp/pompnet-certs/server.crt -days 1 -subj "/CN=ci.example.com"
           docker run -d --name pompnet-ci -p 18080:8080 \
             -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \
             -e NODE_ENV=production \
             -e PORT=8080 \
             -e SIDERAIL_DATA_DIR=/data \
             -e XRAY_VERSION=v26.11.9 \
+            -e SING_BOX_VERSION=1.14.4 \
+            -e SINGBOX_TLS_CERT_FILE=/run/pompnet-certs/server.crt \
+            -e SINGBOX_TLS_KEY_FILE=/run/pompnet-certs/server.key \
+            -v /tmp/pompnet-certs:/run/pompnet-certs:ro \
             pompnet-quantum-nexus:ci
       - name: Verify API and live Xray process
         shell: bash
@@ -113,6 +119,40 @@ jobs:
           curl -fsS -H "Authorization: Bearer $node_token" \
             http://127.0.0.1:18080/api/node-agent/config > /tmp/pompnet-node-config.json
           node -e 'const x=require("/tmp/pompnet-node-config.json"); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !x.config.inbounds.some(i=>i.tag!=="api" && i.listen==="0.0.0.0")) process.exit(1)'
+          curl -fsS -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
+            -d '{"tag":"CI-HYSTERIA2","protocol":"hysteria2","serverName":"ci.example.com"}' \
+            http://127.0.0.1:18080/api/inbounds > /tmp/pompnet-hy2.json
+          curl -fsS -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
+            -d '{"tag":"CI-TUIC","protocol":"tuic","serverName":"ci.example.com"}' \
+            http://127.0.0.1:18080/api/inbounds > /tmp/pompnet-tuic.json
+          hy2_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-hy2.json").id))')
+          tuic_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-tuic.json").id))')
+          hy2_port=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-hy2.json").port))')
+          tuic_port=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-tuic.json").port))')
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/users > /tmp/pompnet-users.json
+          user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").id))')
+          curl -fsS -b /tmp/pompnet-cookies.txt -X PUT -H "Content-Type: application/json" \
+            -d "{\"inboundIds\":[${hy2_id},${tuic_id}]}" \
+            "http://127.0.0.1:18080/api/users/$user_id" >/dev/null
+          singbox_ready=0
+          for attempt in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:18080/healthz -o /tmp/pompnet-singbox-health.json; then
+              if node -e 'const x=require("/tmp/pompnet-singbox-health.json"); process.exit(x.singBox?.running && x.singBox.inbounds===2 ? 0 : 1)'; then singbox_ready=1; break; fi
+            fi
+            sleep 2
+          done
+          if [ "$singbox_ready" -ne 1 ]; then cat /tmp/pompnet-singbox-health.json 2>/dev/null || true; exit 1; fi
+          token=$(node -e 'process.stdout.write(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").sub_token)')
+          curl -fsS "http://127.0.0.1:18080/sub/$token?raw=1" | base64 -d > /tmp/pompnet-udp-sub.txt
+          grep -q "^hysteria2://" /tmp/pompnet-udp-sub.txt
+          grep -q "^tuic://" /tmp/pompnet-udp-sub.txt
+          docker exec pompnet-ci node -e '
+            const ports=process.argv.slice(1).map(Number);
+            const fs=require("node:fs");
+            const rows=["/proc/net/udp","/proc/net/udp6"].flatMap(file=>{try{return fs.readFileSync(file,"utf8").trim().split("\\n").slice(1)}catch{return[]}});
+            for(const port of ports){const hex=port.toString(16).toUpperCase().padStart(4,"0");if(!rows.some(line=>line.trim().split(/\\s+/)[1]?.endsWith(":"+hex))){console.error("Missing UDP listener",port);process.exit(1)}}
+            console.log("sing-box Hysteria2/TUIC UDP listeners verified:",ports.join(", "));
+          ' "$hy2_port" "$tuic_port"
           curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/nodes > /tmp/pompnet-nodes.json
           node -e 'const x=require("/tmp/pompnet-nodes.json"); if (!x.nodes || x.nodes[0].status!=="online") process.exit(1)'
           echo "Authenticated remote-node registry, heartbeat and scoped Xray config API passed."
