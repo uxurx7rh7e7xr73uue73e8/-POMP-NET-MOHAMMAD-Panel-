@@ -38,7 +38,7 @@ jobs:
           node --input-type=module <<'NODE'
           import assert from "node:assert/strict";
           process.env.RAILWAY_PROJECT_ID = "ci-project";
-          const { isPubliclyReachableInbound, getPublicTcpProxyEndpoint } =
+          const { isPubliclyReachableInbound, getPublicTcpProxyEndpoint, getRuntimeCapabilities } =
             await import("./apps/server/dist/railway-capabilities.js");
           const inbound = (protocol, port) => ({ id: port, tag: protocol, protocol, transport: protocol === "wireguard" ? "udp" : "tcp", port, path: "", host: "", enabled: 1, created_at: Date.now(), expires_at: null });
           assert.equal(isPubliclyReachableInbound(inbound("vless", 20000)), true);
@@ -57,7 +57,13 @@ jobs:
           process.env.SINGBOX_TLS_KEY_FILE = "/tmp/key.pem";
           assert.equal(isPubliclyReachableInbound(inbound("hysteria2", 20014)), true);
           assert.equal(isPubliclyReachableInbound(inbound("tuic", 20015)), true);
-          console.log("Railway UDP gating and self-hosted sing-box capability checks passed.");
+          process.env.RAILWAY_PROJECT_ID = "ci-project";
+          process.env.RAILWAY_REPLICA_ID = "ci-replica";
+          process.env.RAILWAY_REPLICA_REGION = "europe-west4-drams3a";
+          const runtime = getRuntimeCapabilities();
+          assert.equal(runtime.railwayReplica.id, "ci-replica");
+          assert.equal(runtime.railwayReplica.region, "europe-west4-drams3a");
+          console.log("Railway UDP gating, replica identity and self-hosted sing-box capability checks passed.");
           NODE
 
   docker-runtime-smoke:
