@@ -120,13 +120,15 @@ function buildRoutingRules(inbounds: Inbound[]) {
   return rules;
 }
 
-export function buildXrayConfig() {
-  const inbounds = listEnabledInbounds().filter(isPubliclyReachableInbound);
+export function buildXrayConfig(options: { remoteNode?: boolean; inboundIds?: number[] } = {}) {
+  const inbounds = listEnabledInbounds()
+    .filter((inbound) => options.inboundIds === undefined || options.inboundIds.includes(inbound.id))
+    .filter((inbound) => options.remoteNode || isPubliclyReachableInbound(inbound));
   const users = listUsers();
 
   const inboundConfigs = inbounds.map((ib) => ({
     tag: ib.tag,
-    listen: ib.protocol === "wireguard" || ib.protocol === "socks" || ib.protocol === "http" ? "0.0.0.0" : "127.0.0.1",
+    listen: options.remoteNode || ib.protocol === "wireguard" || ib.protocol === "socks" || ib.protocol === "http" ? "0.0.0.0" : "127.0.0.1",
     port: ib.port,
     protocol: ib.protocol,
     settings: protocolSettings(ib, users),
