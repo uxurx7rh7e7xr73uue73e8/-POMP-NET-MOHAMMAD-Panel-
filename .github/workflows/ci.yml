@@ -41,6 +41,8 @@ jobs:
           const inbound = (protocol, port) => ({ id: port, tag: protocol, protocol, transport: protocol === "wireguard" ? "udp" : "tcp", port, path: "", host: "", enabled: 1, created_at: Date.now(), expires_at: null });
           assert.equal(isPubliclyReachableInbound(inbound("vless", 20000)), true);
           assert.equal(isPubliclyReachableInbound(inbound("wireguard", 20011)), false);
+          assert.equal(isPubliclyReachableInbound(inbound("hysteria2", 20014)), false);
+          assert.equal(isPubliclyReachableInbound(inbound("tuic", 20015)), false);
           assert.equal(isPubliclyReachableInbound(inbound("socks", 20012)), false);
           process.env.RAILWAY_TCP_PROXY_INTERNAL_PORT = "20012";
           process.env.PUBLIC_TCP_PROXY_HOST = "ci.proxy.rlwy.net";
@@ -48,7 +50,12 @@ jobs:
           assert.equal(isPubliclyReachableInbound(inbound("socks", 20012)), true);
           assert.deepEqual(getPublicTcpProxyEndpoint(inbound("socks", 20012)), { host: "ci.proxy.rlwy.net", port: 12345 });
           assert.equal(isPubliclyReachableInbound(inbound("http", 20013)), false);
-          console.log("Railway protocol gating and exact TCP proxy mapping passed.");
+          delete process.env.RAILWAY_PROJECT_ID;
+          process.env.SINGBOX_TLS_CERT_FILE = "/tmp/cert.pem";
+          process.env.SINGBOX_TLS_KEY_FILE = "/tmp/key.pem";
+          assert.equal(isPubliclyReachableInbound(inbound("hysteria2", 20014)), true);
+          assert.equal(isPubliclyReachableInbound(inbound("tuic", 20015)), true);
+          console.log("Railway UDP gating and self-hosted sing-box capability checks passed.");
           NODE
 
   docker-runtime-smoke:
