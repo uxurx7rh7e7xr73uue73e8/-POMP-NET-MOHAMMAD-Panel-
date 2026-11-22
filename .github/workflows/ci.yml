@@ -129,14 +129,14 @@ jobs:
           node -e 'const x=require("/tmp/pompnet-node-heartbeat.json"); if (!x.ok) process.exit(1)'
           curl -fsS -H "Authorization: Bearer $node_token" \
             http://127.0.0.1:18080/api/node-agent/config > /tmp/pompnet-node-config.json
-          node -e 'const x=require("/tmp/pompnet-node-config.json"); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !x.config.inbounds.some(i=>i.protocol==="wireguard" && i.listen==="0.0.0.0") || x.config.inbounds.some(i=>i.tag!=="api" && i.protocol!=="wireguard")) process.exit(1)'
+          node -e 'const x=require("/tmp/pompnet-node-config.json"); const p=(x.config?.inbounds||[]).filter(i=>i.tag!=="api").map(i=>i.protocol); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !p.includes("wireguard") || !p.includes("vless") || !p.includes("vmess") || !p.includes("trojan") || p.some(v=>!["vless","vmess","trojan","wireguard","socks","http"].includes(v))) process.exit(1)'
           cat > /tmp/pompnet-fake-xray <<'SH'
           #!/usr/bin/env node
           if (process.argv[2] === "run" && process.argv[3] === "-test") process.exit(0);
           setInterval(() => {}, 1000);
           SH
           chmod +x /tmp/pompnet-fake-xray
-          POMP_CONTROLLER_URL=http://127.0.0.1:18080 POMP_NODE_TOKEN="$node_token" XRAY_BIN=/tmp/pompnet-fake-xray POMP_NODE_DATA_DIR=/tmp/pompnet-node-agent node node-agent/agent.mjs > /tmp/pompnet-node-agent.log 2>&1 &
+          POMP_CONTROLLER_URL=http://127.0.0.1:18080 POMP_NODE_TOKEN="$node_token" XRAY_BIN=/tmp/pompnet-fake-xray POMP_NODE_DATA_DIR=/tmp/pompnet-node-agent POMP_NODE_TLS_CERT_FILE=/run/pompnet-certs/server.crt POMP_NODE_TLS_KEY_FILE=/run/pompnet-certs/server.key node node-agent/agent.mjs > /tmp/pompnet-node-agent.log 2>&1 &
           agent_pid=$!
           sleep 3
           curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/nodes > /tmp/pompnet-agent-nodes.json
