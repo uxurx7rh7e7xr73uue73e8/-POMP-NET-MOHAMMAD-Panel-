@@ -208,7 +208,7 @@ api.get("/system", requirePermission("dashboard"), (_req, res) => {
 });
 
 api.post("/system/restart-xray", requirePermission("dashboard"), (req: AuthedRequest, res) => {
-  restartXray();
+  restartTunnelEngines();
   logActivity(req.admin!.username, "xray_restart", "");
   res.json({ ok: true });
 });
@@ -234,7 +234,7 @@ api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) =
   try {
     const inbound = createInbound({ ...body.data, host: body.data.protocol === "hysteria2" || body.data.protocol === "tuic" ? body.data.serverName : "" });
     logActivity(req.admin!.username, "inbound_create", `${inbound.tag} : ${inbound.port}`);
-    restartXray();
+    restartTunnelEngines();
     res.json(inbound);
   } catch (e) { res.status(400).json({ error: (e as Error).message }); }
 });
@@ -243,7 +243,7 @@ api.delete("/inbounds/:id", requirePermission("inbounds"), (req: AuthedRequest, 
   try {
     if (!deleteInbound(Number(req.params.id))) { res.status(404).json({ error: "not found" }); return; }
     logActivity(req.admin!.username, "inbound_delete", `#${req.params.id}`);
-    restartXray();
+    restartTunnelEngines();
     res.json({ ok: true });
   } catch (e) { res.status(400).json({ error: (e as Error).message }); }
 });
@@ -261,13 +261,13 @@ api.patch("/inbounds/:id", requirePermission("inbounds"), async (req: AuthedRequ
   if (body.data.expireDays !== undefined) {
     const inbound = renewInbound(id, body.data.expireDays);
     logActivity(req.admin!.username, "inbound_renew", `#${id} ${body.data.expireDays} days`);
-    restartXray();
+    restartTunnelEngines();
     res.json(inbound);
     return;
   }
   setInboundEnabled(id, body.data.enabled!);
   logActivity(req.admin!.username, "inbound_toggle", `#${id} -> ${body.data.enabled}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -331,7 +331,7 @@ api.post("/users", requirePermission("users"), async (req: AuthedRequest, res) =
   try {
     const user = createUser({ ...body.data, createdBy: req.admin!.id });
     logActivity(req.admin!.username, "user_create", user.email);
-    restartXray();
+    restartTunnelEngines();
     res.json(user);
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
@@ -354,7 +354,7 @@ api.put("/users/:id", requirePermission("users"), async (req: AuthedRequest, res
     return;
   }
   logActivity(req.admin!.username, "user_update", user.email);
-  restartXray();
+  restartTunnelEngines();
   res.json(user);
 });
 
@@ -366,7 +366,7 @@ api.delete("/users/:id", requirePermission("users"), async (req: AuthedRequest, 
   const user = getUser(Number(req.params.id));
   deleteUser(Number(req.params.id));
   logActivity(req.admin!.username, "user_delete", user?.email || String(req.params.id));
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -382,7 +382,7 @@ api.post("/users/:id/toggle", requirePermission("users"), async (req: AuthedRequ
   }
   setUserEnabled(Number(req.params.id), body.data.enabled);
   logActivity(req.admin!.username, "user_toggle", `#${req.params.id} -> ${body.data.enabled}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -615,7 +615,7 @@ api.post("/backup/import", requirePermission("dashboard"), async (req: AuthedReq
       "backup_import",
       `${result.users} users, ${result.inbounds} inbounds`,
     );
-    restartXray();
+    restartTunnelEngines();
     res.json({ ok: true, ...result });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
@@ -654,7 +654,7 @@ api.post("/routing", requirePermission("routing"), async (req: AuthedRequest, re
     body.data.label || "",
   );
   logActivity(req.admin!.username, "routing_add", body.data.label || body.data.domain);
-  restartXray();
+  restartTunnelEngines();
   res.json(rule);
 });
 
@@ -666,14 +666,14 @@ api.put("/routing/:id", requirePermission("routing"), async (req: AuthedRequest,
   }
   updateRoutingRule(Number(req.params.id), body.data.inboundIds);
   logActivity(req.admin!.username, "routing_update", `#${req.params.id}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
 api.delete("/routing/:id", requirePermission("routing"), async (req: AuthedRequest, res) => {
   deleteRoutingRule(Number(req.params.id));
   logActivity(req.admin!.username, "routing_delete", `#${req.params.id}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -747,7 +747,7 @@ api.post("/users/:id/renew", requirePermission("users"), (req: AuthedRequest, re
   db.prepare("INSERT INTO renewal_history (user_id, days, previous_expire_at, new_expire_at, actor, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
     .run(id, body.data.days, previous, next, req.admin!.username, body.data.note || "", now);
   logActivity(req.admin!.username, "user_renew", `#${id} +${body.data.days} days`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true, user: getUser(id), expireAt: next });
 });
 
