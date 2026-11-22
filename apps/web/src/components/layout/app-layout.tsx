@@ -14,7 +14,7 @@ import {
   Ban,
   Bot,
   Languages,
-  MessageSquareText,
+  MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
