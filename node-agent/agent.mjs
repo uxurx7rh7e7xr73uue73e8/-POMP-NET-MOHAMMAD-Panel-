@@ -94,14 +94,37 @@ async function startXray() {
   });
 }
 
+function prepareNodeConfig(source) {
+  const cfg = structuredClone(source);
+  const cert = process.env.POMP_NODE_TLS_CERT_FILE || "";
+  const key = process.env.POMP_NODE_TLS_KEY_FILE || "";
+  for (const inbound of cfg.inbounds || []) {
+    if (inbound.tag === "api" || ["wireguard", "socks", "http"].includes(inbound.protocol)) continue;
+    if (!cert || !key || !fs.existsSync(cert) || !fs.existsSync(key)) {
+      throw new Error(`Inbound ${inbound.tag} requires POMP_NODE_TLS_CERT_FILE and POMP_NODE_TLS_KEY_FILE pointing to a valid node certificate and key.`);
+    }
+    const network = inbound.streamSettings?.network;
+    if (!["ws", "httpupgrade", "xhttp"].includes(network)) {
+      throw new Error(`Inbound ${inbound.tag} uses unsupported remote TLS transport: ${network || "unknown"}.`);
+    }
+    inbound.streamSettings.security = "tls";
+    inbound.streamSettings.tlsSettings = {
+      certificates: [{ certificateFile: cert, keyFile: key }],
+      alpn: network === "xhttp" ? ["h2", "http/1.1"] : ["http/1.1"],
+    };
+  }
+  return cfg;
+}
+
 async function applyConfig() {
   const result = await request("/api/node-agent/config");
-  const serialized = JSON.stringify(result.config);
+  const nodeConfig = prepareNodeConfig(result.config);
+  const serialized = JSON.stringify(nodeConfig);
   const hash = result.configHash || sha256(serialized);
   if (hash === currentHash && child && child.exitCode === null) return hash;
 
   const temp = configFile + ".next";
-  fs.writeFileSync(temp, JSON.stringify(result.config, null, 2), { mode: 0o600 });
+  fs.writeFileSync(temp, JSON.stringify(nodeConfig, null, 2), { mode: 0o600 });
   const previous = fs.existsSync(configFile) ? fs.readFileSync(configFile) : null;
   fs.renameSync(temp, configFile);
   try {
