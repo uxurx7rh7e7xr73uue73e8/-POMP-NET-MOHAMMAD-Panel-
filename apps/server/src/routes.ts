@@ -476,6 +476,9 @@ api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
     inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
+  if (body.data.inboundIds.some((id) => getInbound(id)?.protocol !== "wireguard")) {
+    res.status(400).json({ error: "The current remote node agent supports WireGuard inbounds only." }); return;
+  }
   if (body.data.endpoint) {
     try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
     catch { res.status(400).json({ error: "node endpoint must use HTTPS" }); return; }
@@ -496,6 +499,9 @@ api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
     enabled: z.boolean().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node update" }); return; }
+  if (body.data.inboundIds?.some((id) => getInbound(id)?.protocol !== "wireguard")) {
+    res.status(400).json({ error: "The current remote node agent supports WireGuard inbounds only." }); return;
+  }
   const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as Record<string, unknown> | undefined;
   if (!current) { res.status(404).json({ error: "node not found" }); return; }
   if (body.data.endpoint) {
