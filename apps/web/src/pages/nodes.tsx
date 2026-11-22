@@ -21,7 +21,7 @@ export default function NodesPage() {
   const nodesQuery = useQuery({ queryKey: ["managed-nodes"], queryFn: api.nodes, refetchInterval: 10000 });
   const inboundQuery = useQuery({ queryKey: ["inbounds"], queryFn: api.inbounds });
   const nodes = nodesQuery.data?.nodes ?? [];
-  const inbounds = inboundQuery.data ?? [];
+  const inbounds = (inboundQuery.data ?? []).filter(ib => ib.protocol === "wireguard");
   const refresh = () => qc.invalidateQueries({ queryKey: ["managed-nodes"] });
 
   const create = useMutation({
@@ -60,7 +60,7 @@ XRAY_BIN=/usr/local/bin/xray`;
 
   return <div className="space-y-6" dir="rtl">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="font-heading text-3xl">مدیریت نودهای مستقل</h1><p className="mt-1 text-sm text-text/60">اتصال امن نودهای لینوکسی، همگام‌سازی تنظیمات Xray و پایش heartbeat</p></div>
+      <div><h1 className="font-heading text-3xl">مدیریت نودهای مستقل</h1><p className="mt-1 text-sm text-text/60">اتصال امن نودهای لینوکسی، همگام‌سازی WireGuard UDP و پایش heartbeat</p></div>
       <Button variant="neutral" onClick={refresh}><RefreshCw className="h-4 w-4"/> تازه‌سازی</Button>
     </div>
     <div className="grid gap-3 sm:grid-cols-3">
@@ -72,7 +72,7 @@ XRAY_BIN=/usr/local/bin/xray`;
       <CardContent><form className="grid gap-3 md:grid-cols-2" onSubmit={e=>{e.preventDefault();create.mutate();}}>
         <label className="space-y-1 text-xs text-text/60">نام نود<input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={64} placeholder="مثلاً POMP-NODE-DE-01" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text"/></label>
         <label className="space-y-1 text-xs text-text/60">آدرس عمومی نود (اختیاری)<input value={endpoint} onChange={e=>setEndpoint(e.target.value)} placeholder="https://node.example.com" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text"/></label>
-        <div className="md:col-span-2 space-y-2"><div className="text-xs text-text/60">اینباندهای مجاز این نود · انتخاب‌نکردن = همه اینباندهای فعال</div><div className="flex flex-wrap gap-2">{inbounds.map(ib=><button key={ib.id} type="button" onClick={()=>setSelected(old=>old.includes(ib.id)?old.filter(x=>x!==ib.id):[...old,ib.id])} className={"rounded-lg border px-3 py-2 text-xs "+(selected.includes(ib.id)?"border-violet-400 bg-violet-500/15":"border-border bg-background")}>{ib.tag}</button>)}</div></div>
+        <div className="md:col-span-2 space-y-2"><div className="text-xs text-text/60">اینباندهای WireGuard این نود · انتخاب‌نکردن = همه ورودی‌های WireGuard</div><div className="flex flex-wrap gap-2">{inbounds.map(ib=><button key={ib.id} type="button" onClick={()=>setSelected(old=>old.includes(ib.id)?old.filter(x=>x!==ib.id):[...old,ib.id])} className={"rounded-lg border px-3 py-2 text-xs "+(selected.includes(ib.id)?"border-violet-400 bg-violet-500/15":"border-border bg-background")}>{ib.tag}</button>)}</div></div>
         <div className="md:col-span-2"><Button type="submit" disabled={create.isPending || name.trim().length<2}><Plus className="h-4 w-4"/>{create.isPending?"در حال ثبت…":"ثبت نود و ساخت توکن امن"}</Button></div>
       </form></CardContent>
     </Card>
