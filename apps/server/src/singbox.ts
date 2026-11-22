@@ -39,7 +39,6 @@ export function buildSingBoxServerConfig() {
   if (!inbounds.length) return null;
   const users = listUsers();
   const generated = inbounds.map((inbound) => {
-    const host = serverName(inbound);
     const clients = users.filter((user) => isUserActive(user) && user.inbound_ids.includes(inbound.id));
     const tls = {
       enabled: true,
