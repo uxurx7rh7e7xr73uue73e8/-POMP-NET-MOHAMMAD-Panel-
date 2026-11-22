@@ -33,7 +33,7 @@ The agent fetches the node-scoped Xray config over HTTPS, validates it with `xra
 ## Security and limitations
 
 - Keep the token private. It grants access to node configuration and heartbeat reporting.
-- The agent currently applies the controller's enabled inbounds to this node; use inbound assignment in the node registry to scope the config. An empty assignment means all enabled inbounds.
+- The agent currently applies the controller's enabled inbounds to this node; use inbound assignment in the node registry to scope the config. An empty assignment means all enabled WireGuard inbounds.
 - Node status is based on authenticated heartbeat. It does not prove a client has successfully connected.
 - Do not expose the Xray API port publicly.
 - Configure firewall rules on the node for the assigned TCP/UDP listener ports.
