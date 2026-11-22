@@ -233,12 +233,15 @@ export function buildUserLinks(
       // Railway cannot expose UDP itself. A healthy, authenticated remote node
       // can publish a WireGuard endpoint directly without opening UDP on Railway.
       if (inbound.protocol === "wireguard") {
-        return activeNodeTargets(inbound.id).map((node) => ({
-          tag: `${inboundDisplayLabel(inbound, user, inbounds)} · ${node.name}`,
-          protocol: inbound.protocol,
-          transport: inbound.transport,
-          link: buildLink({ host, address: node.host, user, inbound, allInbounds: inbounds }),
-        }));
+        return activeNodeTargets(inbound.id).map((node) => {
+          const nodeInbound = { ...inbound, tag: `${inbound.tag}-${node.name}` };
+          return {
+            tag: inboundDisplayLabel(nodeInbound, user, inbounds),
+            protocol: inbound.protocol,
+            transport: inbound.transport,
+            link: buildLink({ host, address: node.host, user, inbound: nodeInbound, allInbounds: inbounds }),
+          };
+        });
       }
       return [];
     });
