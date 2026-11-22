@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Server, Plus, Copy, RefreshCw, Trash2, Power, ShieldCheck, Activity } from "lucide-react";
+import { Server, Plus, Copy, RefreshCw, Trash2, Power, ShieldCheck, Activity, Terminal } from "lucide-react";
 import { api, type NodeRecord } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ POMP_NODE_TOKEN=${newToken}
 POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
 XRAY_BIN=/usr/local/bin/xray`;
+  const installCommand = `mkdir -p /opt/pompnet-node-src && cd /opt/pompnet-node-src && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/agent.mjs -o agent.mjs && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/pompnet-node.service -o pompnet-node.service && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/install.sh -o install.sh && sudo bash install.sh`;
 
   return <div className="space-y-6" dir="rtl">
     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -83,6 +84,9 @@ XRAY_BIN=/usr/local/bin/xray`;
       <div className="text-xs text-text/60">مقادیر پایه فایل /etc/pompnet-node.env</div>
       <pre dir="ltr" className="overflow-x-auto rounded-lg border border-border bg-black/30 p-3 text-xs">{installText}</pre>
       <Button variant="neutral" onClick={()=>copy(installText)}><Copy className="h-4 w-4"/> کپی تنظیمات نصب</Button>
+      <div className="text-xs text-text/60">دستور آماده دانلود Agent و نصب سرویس روی Ubuntu/Debian (نیازمند Node.js 22+ و Xray از قبل نصب‌شده)</div>
+      <pre dir="ltr" className="overflow-x-auto rounded-lg border border-border bg-black/30 p-3 text-xs">{installCommand}</pre>
+      <Button variant="neutral" onClick={()=>copy(installCommand)}><Terminal className="h-4 w-4"/> کپی دستور نصب نود</Button>
       <Button variant="neutral" onClick={()=>setNewToken("")}>بستن نمایش توکن</Button>
     </CardContent></Card>}
     <div className="space-y-3">
