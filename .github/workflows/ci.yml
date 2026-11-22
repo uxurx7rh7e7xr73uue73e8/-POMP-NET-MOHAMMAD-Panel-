@@ -89,6 +89,7 @@ jobs:
             -e SING_BOX_VERSION=1.14.4 \
             -e SINGBOX_TLS_CERT_FILE=/run/pompnet-certs/server.crt \
             -e SINGBOX_TLS_KEY_FILE=/run/pompnet-certs/server.key \
+            -e POMP_TUNNEL_DEBUG=1 \
             -v /tmp/pompnet-certs:/run/pompnet-certs:ro \
             pompnet-quantum-nexus:ci
       - name: Verify API and live Xray process
