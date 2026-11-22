@@ -29,7 +29,6 @@ import { Star, Tag, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RailLogo } from "@/components/rail-logo";
 import { AnimatedBackground } from "@/components/animated-background";
-import { BrandSignature } from "@/components/brand-signature";
 
 const GITHUB_URL = "https://github.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-";
 
@@ -57,13 +56,14 @@ const nav: {
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="grid h-9 w-9 place-items-center rounded-base border-2 border-border bg-main text-mtext neo-shadow">
-        <RailLogo className="h-5 w-5" />
+    <div className="pn-sidebar-brand flex flex-col items-center gap-2 text-center">
+      <div className="pn-sidebar-crown grid h-16 w-16 place-items-center rounded-full">
+        <RailLogo className="h-11 w-11" />
       </div>
       <div className="leading-tight">
-        <div className="font-heading text-[15px] tracking-tight">POMP NET MOHAMMAD</div>
-        <div className="text-[10px] uppercase tracking-widest text-text/60">QUANTUM NEXUS</div>
+        <div className="font-heading text-lg font-black tracking-tight">POMP NET</div>
+        <div className="font-heading text-lg font-black tracking-tight">MOHAMMAD</div>
+        <div className="mt-1 text-[10px] text-text/65">قدرت ساخت، آزادی انتخاب، کنترل در دستان تو</div>
       </div>
     </div>
   );
@@ -320,7 +320,6 @@ export function AppLayout() {
 
           <main className="flex-1 p-4 lg:p-8">
             <div className="mx-auto max-w-7xl animate-fade-in">
-              <BrandSignature compact />
               <Outlet />
             </div>
           </main>
