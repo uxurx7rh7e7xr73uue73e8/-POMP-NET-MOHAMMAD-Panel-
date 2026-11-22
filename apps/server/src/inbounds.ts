@@ -15,12 +15,6 @@ const SEED_INBOUNDS: SeedDef[] = [
   { tag: "VMess-WS", protocol: "vmess", transport: "ws" },
   { tag: "Trojan-WS", protocol: "trojan", transport: "ws" },
   { tag: "VLESS-HTTPUpgrade", protocol: "vless", transport: "httpupgrade" },
-  { tag: "POMP-XHTTP-EDGE", protocol: "vless", transport: "xhttp" },
-  { tag: "POMP-WS-STABLE", protocol: "vless", transport: "ws" },
-  { tag: "POMP-HTTPUPGRADE-FAST", protocol: "vless", transport: "httpupgrade" },
-  { tag: "POMP-TROJAN-STABLE", protocol: "trojan", transport: "ws" },
-  { tag: "POMP-VMESS-COMPAT", protocol: "vmess", transport: "ws" },
-  { tag: "POMP-GAME-ROUTE", protocol: "vless", transport: "xhttp" },
 ];
 
 export function seedInbounds(): void {
@@ -60,12 +54,12 @@ export function seedInbounds(): void {
 }
 
 export function listInbounds(): Inbound[] {
-  return db.prepare("SELECT * FROM inbounds ORDER BY id ASC").all() as unknown as Inbound[];
+  return db.prepare("SELECT * FROM inbounds WHERE protocol IN ('vless', 'vmess', 'trojan') ORDER BY id ASC").all() as unknown as Inbound[];
 }
 
 export function listEnabledInbounds(): Inbound[] {
   return db
-    .prepare("SELECT * FROM inbounds WHERE enabled = 1 AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC")
+    .prepare("SELECT * FROM inbounds WHERE protocol IN ('vless', 'vmess', 'trojan') AND enabled = 1 AND (expires_at IS NULL OR expires_at > ?) ORDER BY id ASC")
     .all(Date.now()) as unknown as Inbound[];
 }
 
