@@ -22,6 +22,8 @@ import {
   CircleAlert,
   Wifi,
   WifiOff,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { QrCode } from "@/components/qr-code";
 import { RailLogo } from "@/components/rail-logo";
@@ -109,7 +111,14 @@ export default function SubscriptionPage() {
   const { t } = useI18n();
   const { data, isLoading, isError } = useSubData(token);
   const [qrConfig, setQrConfig] = React.useState<SubLink | null>(null);
-  const [subQrOpen, setSubQrOpen] = React.useState(false);\n  const [now, setNow] = React.useState(() => new Date());\n  React.useEffect(() => {\n    const timer = window.setInterval(() => setNow(new Date()), 1000);\n    return () => window.clearInterval(timer);\n  }, []);\n  const tehranDate = now.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });\n  const tehranTime = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const [subQrOpen, setSubQrOpen] = React.useState(false);
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const tehranDate = now.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });
+  const tehranTime = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const subUrl = `${window.location.origin}/sub/${token}`;
 
@@ -149,7 +158,11 @@ export default function SubscriptionPage() {
     <div className="pn-sub-page relative min-h-screen overflow-x-hidden bg-bg pb-16" dir="rtl">
       <AnimatedBackground />
 
-      <div className="relative mx-auto w-full min-w-0 max-w-3xl px-4 pt-6 sm:pt-10">
+      <div className="relative mx-auto w-full min-w-0 max-w-4xl px-4 pt-5 sm:pt-8">
+        <div className="pn-sub-topbar mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-violet-400/25 bg-[#0d0a19]/90 px-4 py-3 text-xs text-white/75 shadow-[0_0_26px_rgba(139,53,255,.10)]">
+          <span className="flex items-center gap-2 font-bold text-white"><RailLogo className="h-5 w-5 text-violet-300"/> POMP NET MOHAMMAD <span className="text-[10px] font-normal tracking-widest text-violet-300">SELFVERSE</span></span>
+          <span className="flex flex-wrap items-center gap-3"><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-cyan-300"/>{tehranDate}</span><span className="flex items-center gap-1.5" dir="ltr"><Clock3 className="h-3.5 w-3.5 text-violet-300"/>{tehranTime}</span></span>
+        </div>
         <header className="pn-sub-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-base border-2 border-border bg-main text-mtext neo-shadow">
