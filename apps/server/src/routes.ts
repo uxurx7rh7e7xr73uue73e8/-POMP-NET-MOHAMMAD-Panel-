@@ -9,7 +9,7 @@
  * Watermark: sr-icubaby-2025-9f4c1a7e
  */
 import { Router } from "express";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { getRuntimeCapabilities } from "./railway-capabilities.js";
 import { buildXrayConfig } from "./xray-config.js";
 import { z } from "zod";
@@ -152,7 +152,7 @@ function nodeTokenHash(token: string): string {
 }
 
 function authenticateNode(req: import("express").Request, res: import("express").Response): { id: number; inbound_ids: number[] } | null {
-  const token = req.header("authorization")?.replace(/^Bearer\\s+/i, "") || "";
+  const token = req.header("authorization")?.replace(/^Bearer\s+/i, "") || "";
   if (!token || token.length < 40) { res.status(401).json({ error: "node authentication required" }); return null; }
   const hash = nodeTokenHash(token);
   const row = db.prepare("SELECT id, inbound_ids, enabled FROM managed_nodes WHERE token_hash = ?").get(hash) as
@@ -457,6 +457,7 @@ api.post("/settings/credentials", requirePermission("settings"), (req: AuthedReq
 });
 
 api.get("/nodes", requirePermission("settings"), (_req, res) => {
+  db.prepare("UPDATE managed_nodes SET status = 'offline' WHERE enabled = 1 AND status = 'online' AND last_seen < ?").run(Date.now() - 90000);
   const nodes = db.prepare("SELECT id, name, endpoint, inbound_ids, enabled, status, last_seen, agent_version, xray_version, platform, arch, config_hash, last_error, created_at, updated_at FROM managed_nodes ORDER BY id DESC").all() as Record<string, unknown>[];
   res.json({ nodes: nodes.map((node) => ({ ...node, inbound_ids: JSON.parse(String(node.inbound_ids || "[]")) })) });
 });
