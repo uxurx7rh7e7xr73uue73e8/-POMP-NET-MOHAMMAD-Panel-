@@ -28,7 +28,6 @@ import { rateLimit } from "./ratelimit.js";
 import { sendDailyBackup, startTelegramBot, notifyExpiringUsers } from "./bot.js";
 import { refreshIpInfo } from "./ipinfo.js";
 import { SIDERAIL_SIGNATURE, watermark } from "./brand.js";
-import { singBoxStatus, startSingBox, restartSingBox } from "./singbox.js";
 
 console.log(SIDERAIL_SIGNATURE);
 
@@ -51,10 +50,7 @@ app.use(cookieParser());
 app.set("trust proxy", true);
 app.get("/healthz", (_req, res) => {
   const xray = isRunning();
-  const singBox = singBoxStatus();
-  const singBoxHealthy = singBox.inbounds === 0 || (singBox.running && !singBox.error);
-  const ok = xray && singBoxHealthy;
-  res.status(ok ? 200 : 503).json({ ok, xray, xrayVersion: xrayVersion(), singBox, service: "POMP NET MOHAMMAD — QUANTUM NEXUS", ...watermark() });
+  res.status(xray ? 200 : 503).json({ ok: xray, xray, xrayVersion: xrayVersion(), service: "POMP NET MOHAMMAD — QUANTUM NEXUS", ...watermark() });
 });
 
 app.use("/api", rateLimit, api);
@@ -89,7 +85,6 @@ attachTunnel(server);
 server.listen(config.port, config.host, async () => {
   console.log(`POMP NET MOHAMMAD — QUANTUM NEXUS listening on http://${config.host}:${config.port}`);
   await startXray();
-  await startSingBox();
   startTelegramBot();
   void refreshIpInfo();
 });
@@ -136,9 +131,8 @@ setInterval(() => {
     const nextState = engineConfigState();
     if (nextState !== lastEngineConfigState) {
       lastEngineConfigState = nextState;
-      console.log("[POMP NET] Active user/inbound configuration changed; reloading Xray and sing-box.");
+      console.log("[POMP NET] Active user/inbound configuration changed; reloading Xray.");
       restartXray();
-      restartSingBox();
     }
   } catch (error) {
     console.error("[POMP NET engine config monitor]", error);
@@ -147,7 +141,7 @@ setInterval(() => {
 
 setInterval(() => {
   try {
-    if (expireInbounds() > 0) { restartXray(); restartSingBox(); }
+    if (expireInbounds() > 0) restartXray();
   } catch (error) {
     console.error("[POMP NET inbound expiry]", error);
   }
