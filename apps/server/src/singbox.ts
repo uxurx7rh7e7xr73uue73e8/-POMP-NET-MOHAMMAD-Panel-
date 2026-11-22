@@ -80,12 +80,20 @@ function configPath(): string {
   return path.join(config.xrayDir, "sing-box-server.json");
 }
 
-function stop(): void {
-  if (!proc) return;
+function stop(): Promise<void> {
+  if (!proc) return Promise.resolve();
   const old = proc;
   proc = null;
-  old.kill("SIGTERM");
-  setTimeout(() => { if (old.exitCode === null) old.kill("SIGKILL"); }, 5000).unref();
+  return new Promise((resolve) => {
+    if (old.exitCode !== null) return resolve();
+    const timer = setTimeout(() => {
+      if (old.exitCode === null) old.kill("SIGKILL");
+      resolve();
+    }, 5000);
+    timer.unref();
+    old.once("exit", () => { clearTimeout(timer); resolve(); });
+    old.kill("SIGTERM");
+  });
 }
 
 export function singBoxCapabilities() {
@@ -107,10 +115,10 @@ export function singBoxStatus() {
   };
 }
 
-export function startSingBox(): void {
+export async function startSingBox(): Promise<void> {
   const inbounds = udpInbounds();
   if (!inbounds.length) {
-    stop();
+    await stop();
     lastError = "";
     return;
   }
@@ -122,7 +130,7 @@ export function startSingBox(): void {
     return;
   }
   const cfg = buildSingBoxServerConfig();
-  if (!cfg) { stop(); return; }
+  if (!cfg) { await stop(); return; }
   const file = configPath();
   const temp = file + ".next";
   fs.writeFileSync(temp, JSON.stringify(cfg, null, 2), { mode: 0o600 });
@@ -134,7 +142,7 @@ export function startSingBox(): void {
     return;
   }
   fs.renameSync(temp, file);
-  stop();
+  await stop();
   const child = spawn(config.singBoxBin, ["run", "-c", file], { cwd: config.xrayDir, stdio: "ignore" });
   proc = child;
   startedAt = Date.now();
@@ -157,6 +165,6 @@ export function restartSingBox(): void {
   if (restartTimer) clearTimeout(restartTimer);
   restartTimer = setTimeout(() => {
     restartTimer = null;
-    startSingBox();
+    void startSingBox();
   }, 900);
 }
