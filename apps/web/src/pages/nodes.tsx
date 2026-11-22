@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const time = (value: number | null) => value ? new Intl.DateTimeFormat("fa-IR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "هنوز متصل نشده";
-const stateText: Record<NodeRecord["status"], string> = { online: "آنلاین", pending: "در انتظار اتصال", error: "دارای خطا", disabled: "غیرفعال" };
+const stateText: Record<NodeRecord["status"], string> = { online: "آنلاین", pending: "در انتظار اتصال", error: "دارای خطا", disabled: "غیرفعال", offline: "آفلاین" };
 
 export default function NodesPage() {
   const toast = useToast();
