@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import https from "node:https";
+import net from "node:net";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { config } from "./config.js";
@@ -109,8 +110,6 @@ export function xrayUptime(): number {
 
 export async function startXray(): Promise<void> {
   restartSingBox();
-  xrayReady = false;
-  running = false;
   const ok = await ensureBinary();
   if (!ok) {
     console.error("[POMP NET Xray] Core binary is unavailable.");
@@ -126,7 +125,23 @@ export async function startXray(): Promise<void> {
     console.error("[POMP NET Xray] Config validation failed:", validation.stderr || validation.stdout || validation.error);
     return;
   }
+  const previous = proc;
+  xrayReady = false;
+  running = false;
   stopXray();
+  if (previous && previous.exitCode === null) {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 3000);
+      previous.once("exit", () => { clearTimeout(timer); resolve(); });
+    });
+    if (previous.exitCode === null && previous.pid) {
+      try { previous.kill("SIGKILL"); } catch { /* noop */ }
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 1000);
+        previous.once("exit", () => { clearTimeout(timer); resolve(); });
+      });
+    }
+  }
   const child = spawn(binPath(), ["run", "-config", cfgFile], {
     cwd: config.xrayDir,
     stdio: ["ignore", "pipe", "pipe"],
@@ -159,6 +174,33 @@ export async function startXray(): Promise<void> {
     console.error("[POMP NET Xray] Core exited during startup:", diagnostic);
     return;
   }
+  const parsedConfig = JSON.parse(fs.readFileSync(cfgFile, "utf8")) as {
+    inbounds?: Array<{ tag?: string; port?: number; protocol?: string }>;
+  };
+  const readinessInbound = parsedConfig.inbounds?.find((item) =>
+    item.tag !== "api" && item.port && !["wireguard", "hysteria2", "tuic"].includes(item.protocol || ""),
+  );
+  if (readinessInbound?.port) {
+    const deadline = Date.now() + 5000;
+    let listening = false;
+    while (Date.now() < deadline && proc === child && child.exitCode === null) {
+      listening = await new Promise<boolean>((resolve) => {
+        const socket = net.createConnection({ host: "127.0.0.1", port: readinessInbound.port! });
+        socket.setTimeout(350);
+        socket.once("connect", () => { socket.destroy(); resolve(true); });
+        socket.once("error", () => resolve(false));
+        socket.once("timeout", () => { socket.destroy(); resolve(false); });
+      });
+      if (listening) break;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    if (!listening) {
+      console.error("[POMP NET Xray] Core process is alive but no TCP inbound became ready:", readinessInbound.port, diagnostic);
+      stopXray();
+      return;
+    }
+  }
+  if (proc !== child || child.exitCode !== null) return;
   running = true;
   xrayReady = true;
   xrayStartedAt = Date.now();
