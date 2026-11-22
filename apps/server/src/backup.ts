@@ -51,8 +51,8 @@ export function importData(payload: BackupPayload): { users: number; inbounds: n
     db.exec("DELETE FROM user_inbounds; DELETE FROM users; DELETE FROM inbounds;");
 
     const insInbound = db.prepare(
-      `INSERT INTO inbounds (id, tag, protocol, transport, port, path, host, enabled, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO inbounds (id, tag, protocol, transport, port, path, host, enabled, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const ib of payload.inbounds) {
       insInbound.run(
@@ -65,6 +65,7 @@ export function importData(payload: BackupPayload): { users: number; inbounds: n
         ib.host,
         ib.enabled,
         ib.created_at,
+        ib.expires_at ?? null,
       );
     }
 
