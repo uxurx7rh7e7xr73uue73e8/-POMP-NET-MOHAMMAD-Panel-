@@ -74,7 +74,8 @@ jobs:
           mkdir -p /tmp/pompnet-certs
           openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/pompnet-certs/server.key -out /tmp/pompnet-certs/server.crt -days 1 -subj "/CN=ci.example.com"
           docker run -d --name pompnet-ci -p 18080:8080 \
-            -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \
+            -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \\
+            -p 10808:10808/tcp -p 10809:10809/tcp -p 10810:10810/tcp \\
             -e NODE_ENV=production \
             -e PORT=8080 \
             -e SIDERAIL_DATA_DIR=/data \
@@ -180,6 +181,44 @@ jobs:
           wait "$agent_pid" || true
           agent_pid=""
           curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/users > /tmp/pompnet-users.json
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/inbounds > /tmp/pompnet-inbounds.json
+          node <<'NODE'
+          const fs = require("node:fs");
+          const users = require("/tmp/pompnet-users.json").users;
+          const inbounds = require("/tmp/pompnet-inbounds.json");
+          const user = users.find(item => item.email === "sample-user");
+          if (!user?.uuid || !user?.password) throw new Error("CI sample user credentials unavailable");
+          const definitions = [
+            { tag: "VLESS-WS", protocol: "vless", port: 10808, settings: { vnext: [{ address: "127.0.0.1", port: 8080, users: [{ id: user.uuid, encryption: "none" }] }] } },
+            { tag: "VMess-WS", protocol: "vmess", port: 10809, settings: { vnext: [{ address: "127.0.0.1", port: 8080, users: [{ id: user.uuid, alterId: 0, security: "auto" }] }] } },
+            { tag: "Trojan-WS", protocol: "trojan", port: 10810, settings: { servers: [{ address: "127.0.0.1", port: 8080, password: user.password }] } },
+          ];
+          for (const item of definitions) {
+            const inbound = inbounds.find(candidate => candidate.tag === item.tag);
+            if (!inbound?.path) throw new Error("Missing seeded " + item.tag + " inbound");
+            const config = {
+              log: { loglevel: "warning" },
+              inbounds: [{ listen: "0.0.0.0", port: item.port, protocol: "socks", settings: { auth: "noauth", udp: false } }],
+              outbounds: [{
+                protocol: item.protocol,
+                settings: item.settings,
+                streamSettings: { network: "ws", security: "none", wsSettings: { path: inbound.path, headers: { Host: "127.0.0.1" } } },
+              }],
+            };
+            fs.writeFileSync("/tmp/pompnet-" + item.protocol + "-client.json", JSON.stringify(config));
+          }
+          NODE
+          docker exec -d pompnet-ci node -e 'require("node:http").createServer((_req,res)=>res.end("POMP_NET_ROUNDTRIP_OK")).listen(18082,"0.0.0.0")'
+          for item in "vless:10808" "vmess:10809" "trojan:10810"; do
+            protocol="${item%%:*}"
+            docker cp "/tmp/pompnet-$protocol-client.json" pompnet-ci:/tmp/pompnet-$protocol-client.json
+            docker exec -d pompnet-ci /data/xray/xray run -config "/tmp/pompnet-$protocol-client.json"
+          done
+          sleep 3
+          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10808 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
+          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10809 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
+          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10810 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
+          echo "Real Xray client traffic round-trips passed for VLESS/WS, VMess/WS and Trojan/WS through the panel WebSocket tunnel."
           user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").id))')
           echo "CI stage: assign sample user"
                     curl -fsS -b /tmp/pompnet-cookies.txt -X PUT -H "Content-Type: application/json" \
