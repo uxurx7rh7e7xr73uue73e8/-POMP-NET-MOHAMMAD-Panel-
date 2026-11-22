@@ -21,9 +21,6 @@ const SEED_INBOUNDS: SeedDef[] = [
   { tag: "POMP-TROJAN-STABLE", protocol: "trojan", transport: "ws" },
   { tag: "POMP-VMESS-COMPAT", protocol: "vmess", transport: "ws" },
   { tag: "POMP-GAME-ROUTE", protocol: "vless", transport: "xhttp" },
-  { tag: "POMP-WIREGUARD", protocol: "wireguard", transport: "udp" },
-  { tag: "POMP-SOCKS5-AUTH", protocol: "socks", transport: "tcp" },
-  { tag: "POMP-HTTP-PROXY-AUTH", protocol: "http", transport: "tcp" },
 ];
 
 export function seedInbounds(): void {
@@ -105,11 +102,8 @@ export function createInbound(input: CreateInboundInput): Inbound {
   let port = config.inboundBasePort;
   while (used.has(port) && port < config.inboundBasePort + 10000) port++;
   if (used.has(port)) throw new Error("No free inbound port in configured range");
-  const transport: Transport = input.protocol === "wireguard" || input.protocol === "hysteria2" || input.protocol === "tuic" ? "udp"
-    : input.protocol === "socks" || input.protocol === "http" ? "tcp" : input.transport;
-  const path = input.protocol === "wireguard" || input.protocol === "socks" || input.protocol === "http" || input.protocol === "hysteria2" || input.protocol === "tuic"
-    ? ""
-    : `/pompnet/${transport}-${nanoid(10)}`;
+  const transport: Transport = input.transport;
+  const path = `/pompnet/${transport}-${nanoid(10)}`;
   const now = Date.now();
   const expiresAt = input.expireDays && input.expireDays > 0 ? now + input.expireDays * 86_400_000 : null;
   const info = db.prepare(
