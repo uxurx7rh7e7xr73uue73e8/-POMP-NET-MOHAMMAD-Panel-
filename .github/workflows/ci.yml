@@ -212,12 +212,9 @@ jobs:
             fs.writeFileSync("/tmp/pompnet-" + item.protocol + "-client.json", JSON.stringify(config));
           }
           NODE
-          # Use a separate container as the destination. Loopback targets are intentionally
-          # rejected by some Xray routing/final-rule configurations and are not a valid
-          # end-to-end dataplane test for a proxied client.
-          docker run -d --name pompnet-roundtrip --network pompnet-ci-net --network-alias pompnet-roundtrip \
-            --entrypoint node pompnet-quantum-nexus:ci -e 'require("node:http").createServer((_req,res)=>res.end("POMP_NET_ROUNDTRIP_OK")).listen(18082,"0.0.0.0")'
-          docker exec pompnet-ci node -e 'fetch("http://pompnet-roundtrip:18082/").then(r=>r.text()).then(t=>{if(t!=="POMP_NET_ROUNDTRIP_OK")process.exit(1);console.log("Separate round-trip target is reachable.")}).catch(e=>{console.error(e);process.exit(1)})'
+          # Use a public HTTPS destination: the production Xray routing policy blocks
+          # private/container-network targets, so a sidecar on the Docker bridge is not
+          # a valid proxy dataplane destination.
           for item in "vless:10808" "vmess:10809" "trojan:10810"; do
             protocol="${item%%:*}"
             docker cp "/tmp/pompnet-$protocol-client.json" pompnet-ci:/tmp/pompnet-$protocol-client.json
@@ -241,14 +238,14 @@ jobs:
           for item in "vless:10808" "vmess:10809" "trojan:10810"; do
             protocol="${item%%:*}"
             port="${item##*:}"
-            if ! curl --fail --silent --show-error --socks5-hostname "127.0.0.1:$port" http://pompnet-roundtrip:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"; then
+            if ! curl --fail --silent --show-error --connect-timeout 15 --max-time 40 --socks5-hostname "127.0.0.1:$port" https://example.com/ | grep -q "Example Domain"; then
               echo "Xray $protocol WebSocket round-trip failed; client diagnostics follow:"
               docker exec pompnet-ci cat "/tmp/pompnet-$protocol-client.log" || true
               docker logs pompnet-ci || true
               exit 1
             fi
           done
-          echo "Real Xray client traffic round-trips passed for VLESS/WS, VMess/WS and Trojan/WS through the panel WebSocket tunnel."
+          echo "Real Xray client traffic round-trips to public HTTPS passed for VLESS/WS, VMess/WS and Trojan/WS through the panel WebSocket tunnel."
           user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").id))')
           echo "CI stage: assign sample user"
                     curl -fsS -b /tmp/pompnet-cookies.txt -X PUT -H "Content-Type: application/json" \
