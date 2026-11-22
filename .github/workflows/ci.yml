@@ -121,7 +121,7 @@ echo "CI stage: owner setup"
           node -e 'const x=require("/tmp/pompnet-me.json"); if (!x.admin || x.admin.role !== "owner") process.exit(1)'
 echo "CI stage: create initial Xray node"
                     curl -fsS -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
-            -d '{"name":"ci-remote-node","endpoint":"https://xray-node.example.com"}' \
+            -d '{"name":"ci-remote-node"}' \
             http://127.0.0.1:18080/api/nodes > /tmp/pompnet-node-create.json
           node -e 'const x=require("/tmp/pompnet-node-create.json"); if (!x.token || !x.id) process.exit(1)'
           node_token=$(node -e 'process.stdout.write(require("/tmp/pompnet-node-create.json").token)')
