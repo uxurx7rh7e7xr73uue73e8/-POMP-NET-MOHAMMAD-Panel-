@@ -15,6 +15,7 @@ export interface RuntimeCapabilities {
   wireguardPublicUdp: boolean;
   publicUdpProtocols: boolean;
   singBox: { tlsConfigured: boolean; binaryAvailable: boolean; version: string };
+  singBoxStatus: { running: boolean; uptime: number; inbounds: number; version: string; error: string };
 }
 
 export type Permission =
