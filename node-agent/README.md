@@ -6,7 +6,7 @@ This directory contains the real remote-node worker used by the panel's managed_
 
 - Linux server with a public IP and the inbound ports assigned in the panel open in its firewall/provider firewall.
 - Node.js 22 or newer.
-- Xray-core installed at /usr/local/bin/xray (or set XRAY_BIN). The installer downloads sing-box v1.14.4 for supported Linux architectures.
+- Node.js 22+. Xray-core is required only for Xray protocols; Hysteria2/TUIC-only nodes run without Xray. The installer downloads sing-box v1.14.4 for supported Linux architectures.
 - Controller reachable over HTTPS.
 - One node token created from the panel. The token is displayed once; rotate it if lost.
 
@@ -35,7 +35,7 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem
 4. Run `systemctl daemon-reload && systemctl enable --now pompnet-node`.
 5. Check `journalctl -u pompnet-node -f` and the node status in the owner panel.
 
-The agent fetches node-scoped Xray and sing-box configurations over HTTPS. Xray supports VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP; sing-box supports Hysteria2 and TUIC. The agent applies the node-local TLS certificate to VLESS/VMess/Trojan and Hysteria2/TUIC, validates both configurations, supervises both engine processes, writes logs under `/var/lib/pompnet-node`, and sends authenticated health heartbeats. For TLS protocols, configure both `POMP_NODE_TLS_CERT_FILE` and `POMP_NODE_TLS_KEY_FILE`; the certificate SAN must cover every configured TLS/SNI hostname assigned to the node. If a required binary or certificate is missing, the agent reports an error and the controller does not publish links for that unhealthy node. The token is never written to the config file or sent in query parameters.
+The agent fetches node-scoped Xray and sing-box configurations over HTTPS. When assigned, Xray supports VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP; sing-box supports Hysteria2 and TUIC. A sing-box-only UDP node does not start Xray. The agent applies the node-local TLS certificate to VLESS/VMess/Trojan and Hysteria2/TUIC, validates both configurations, supervises both engine processes, writes logs under `/var/lib/pompnet-node`, and sends authenticated health heartbeats. For TLS protocols, configure both `POMP_NODE_TLS_CERT_FILE` and `POMP_NODE_TLS_KEY_FILE`; the certificate SAN must cover every configured TLS/SNI hostname assigned to the node. If a required binary or certificate is missing, the agent reports an error and the controller does not publish links for that unhealthy node. The token is never written to the config file or sent in query parameters.
 
 ## Security and limitations
 
