@@ -12,7 +12,6 @@ import { Router } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import { getRuntimeCapabilities } from "./railway-capabilities.js";
 import { buildXrayConfig } from "./xray-config.js";
-import { singBoxCapabilities, singBoxSetupError, singBoxStatus } from "./singbox.js";
 import { z } from "zod";
 import {
   isSetupDone,
@@ -46,7 +45,6 @@ import {
   summarize,
 } from "./users.js";
 import { getClientIps, restartXray, getServerTraffic, getInboundTraffic } from "./xray.js";
-import { buildSingBoxServerConfig, restartSingBox } from "./singbox.js";
 import { listActivity, logActivity, clearActivity } from "./activity.js";
 import { exportData, importData } from "./backup.js";
 import { loginRateLimit } from "./ratelimit.js";
@@ -61,7 +59,7 @@ import { getBotConfig, saveBotConfig, testBot, sendBroadcastToLinkedUsers, sendT
 
 export const api = Router();
 
-function restartTunnelEngines(): void { restartXray(); restartSingBox(); }
+function restartTunnelEngines(): void { restartXray(); }
 
 const trafficReset = z.enum(["never", "daily", "weekly", "monthly"]);
 const permissionEnum = z.enum([
@@ -101,7 +99,7 @@ function setAuthCookie(res: import("express").Response, token: string): void {
 }
 
 api.get("/capabilities", (_req, res) => {
-  res.json({ ...getRuntimeCapabilities(), singBox: singBoxCapabilities(), singBoxStatus: singBoxStatus() });
+  res.json({ ...getRuntimeCapabilities() });
 });
 
 api.get("/status", (_req, res) => {
@@ -193,10 +191,9 @@ api.get("/node-agent/config", (req, res) => {
   cfg.log = { ...(cfg.log || {}), loglevel: "warning", access: "access.log", error: "error.log" };
   cfg.inbounds = (cfg.inbounds as Record<string, any>[]).map((inbound) =>
     inbound.tag === "api" ? inbound : { ...inbound, listen: "0.0.0.0" });
-  const singBoxConfig = buildSingBoxServerConfig({ remoteNode: true, inboundIds });
-  const serialized = JSON.stringify({ config: cfg, singBoxConfig });
+  const serialized = JSON.stringify({ config: cfg });
   res.setHeader("Cache-Control", "no-store");
-  res.json({ config: cfg, singBoxConfig, configHash: createHash("sha256").update(serialized).digest("hex"), generatedAt: Date.now() });
+  res.json({ config: cfg, configHash: createHash("sha256").update(serialized).digest("hex"), generatedAt: Date.now() });
 });
 
 api.use(authGuard);
@@ -222,23 +219,14 @@ api.get("/inbounds", requirePermission("inbounds"), (_req, res) => {
 api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) => {
   const body = z.object({
     tag: z.string().trim().min(2).max(48),
-    protocol: z.enum(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]),
-    transport: z.enum(["ws", "xhttp", "httpupgrade", "udp", "tcp"]).optional().default("xhttp"),
+    protocol: z.enum(["vless", "vmess", "trojan"]),
+    transport: z.enum(["ws", "xhttp", "httpupgrade"]).optional().default("xhttp"),
     expireDays: z.number().int().min(0).max(3650).optional(),
     serverName: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
-  if (body.data.protocol === "hysteria2" || body.data.protocol === "tuic") {
-    if (getRuntimeCapabilities().railway) {
-      if (!body.data.serverName) { res.status(400).json({ error: "Set the TLS server name before assigning this UDP inbound to a remote node." }); return; }
-    } else {
-      const setupError = singBoxSetupError(body.data.serverName);
-      if (setupError) { res.status(400).json({ error: setupError }); return; }
-    }
-    body.data.transport = "udp";
-  }
   try {
-    const inbound = createInbound({ ...body.data, host: body.data.protocol === "hysteria2" || body.data.protocol === "tuic" ? body.data.serverName : "" });
+    const inbound = createInbound(body.data);
     logActivity(req.admin!.username, "inbound_create", `${inbound.tag} : ${inbound.port}`);
     restartTunnelEngines();
     res.json(inbound);
@@ -485,9 +473,9 @@ api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
     inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
-  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]);
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan"]);
   if (body.data.inboundIds.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
-    res.status(400).json({ error: "Remote nodes support VLESS, VMess, Trojan, WireGuard, SOCKS, HTTP, Hysteria2 and TUIC. Hysteria2/TUIC require sing-box on the node." }); return;
+    res.status(400).json({ error: "Remote nodes support only VLESS, VMess and Trojan." }); return;
   }
   if (body.data.endpoint) {
     try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
