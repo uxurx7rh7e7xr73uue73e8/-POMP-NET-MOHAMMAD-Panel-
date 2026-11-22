@@ -56,7 +56,7 @@ export function AuthShell({
               <div>
                 <div className="font-heading text-2xl leading-none tracking-tight xl:text-3xl">POMP NET MOHAMMAD</div>
                 <div className="mt-2 text-sm font-base text-white/65">
-                  QUANTUM NEXUS · Xray Management
+                  SELFVERSE · Xray Management
                 </div>
               </div>
             </div>
@@ -83,7 +83,7 @@ export function AuthShell({
             </div>
 
             <div className="relative border-t border-white/10 pt-5 text-[10px] font-heading uppercase tracking-[.28em] text-white/40">
-              POMP NET MOHAMMAD · QUANTUM NEXUS
+              POMP NET MOHAMMAD · SELFVERSE
             </div>
           </div>
 
