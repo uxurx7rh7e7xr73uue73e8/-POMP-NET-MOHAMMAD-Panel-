@@ -44,9 +44,9 @@ export default function LoginPage() {
 
   return (
     <AuthShell heading={t("welcomeBack")} sub={t("signInPanel")} highlights={highlights}>
-      <form onSubmit={submit} className="space-y-4" noValidate>
+      <form onSubmit={submit} className="pn-login-form space-y-5" noValidate>
         <div className="space-y-2">
-          <Label htmlFor="username">{t("username")}</Label>
+          <Label htmlFor="username" className="text-sm font-semibold text-white/80">{t("username")}</Label>
           <div className="relative">
             <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text/40" />
             <Input
@@ -54,12 +54,12 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
-              className="pl-9"
+              className="pn-auth-input h-12 rounded-xl border-white/10 bg-white/[.05] pl-10 text-white placeholder:text-white/30 focus-visible:ring-[#8b35ff]"
             />
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">{t("password")}</Label>
+          <Label htmlFor="password" className="text-sm font-semibold text-white/80">{t("password")}</Label>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text/40" />
             <Input
@@ -68,7 +68,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
-              className="px-9"
+              className="pn-auth-input h-12 rounded-xl border-white/10 bg-white/[.05] px-10 text-white placeholder:text-white/30 focus-visible:ring-[#8b35ff]"
             />
             <button
               type="button"
@@ -81,7 +81,7 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="pn-login-submit h-12 w-full rounded-xl border-0 bg-gradient-to-l from-[#168cff] via-[#713cff] to-[#a43cff] font-bold text-white shadow-[0_10px_30px_rgba(113,60,255,.25)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(113,60,255,.38)]" disabled={loading}>
           <LogIn className="h-4 w-4" />
           {loading ? t("signingIn") : t("signIn")}
         </Button>
