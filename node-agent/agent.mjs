@@ -104,6 +104,7 @@ async function startSingBox(source) {
   }
   if (!fs.existsSync(singBoxBin)) throw new Error(`sing-box binary not found at ${singBoxBin}; install sing-box v1.14.4.`);
   const cfg = structuredClone(source);
+  cfg.log = { ...(cfg.log || {}), output: path.join(dataDir, "sing-box.log") };
   for (const inbound of cfg.inbounds) {
     inbound.tls = { ...(inbound.tls || {}), enabled: true, certificate_path: cert, key_path: key };
   }
