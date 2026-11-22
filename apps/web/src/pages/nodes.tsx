@@ -21,6 +21,8 @@ export default function NodesPage() {
   const [editingNode, setEditingNode] = React.useState<NodeRecord | null>(null);
   const nodesQuery = useQuery({ queryKey: ["managed-nodes"], queryFn: api.nodes, refetchInterval: 10000 });
   const inboundQuery = useQuery({ queryKey: ["inbounds"], queryFn: api.inbounds });
+  const capabilitiesQuery = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, refetchInterval: 60000 });
+  const runtime = capabilitiesQuery.data;
   const nodes = nodesQuery.data?.nodes ?? [];
   const inbounds = (inboundQuery.data ?? []).filter(ib => ["vless","vmess","trojan","wireguard","socks","http","hysteria2","tuic"].includes(ib.protocol));
   React.useEffect(() => { if (inbounds.length && selected.length === 0) { const wg = inbounds.filter(ib => ib.protocol === "wireguard"); setSelected((wg.length ? wg : [inbounds[0]]).map(ib => ib.id)); } }, [inbounds, selected.length]);
@@ -81,6 +83,12 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
       <div><h1 className="font-heading text-3xl">مدیریت نودهای مستقل</h1><p className="mt-1 text-sm text-text/60">اتصال چندنودی امن برای VLESS، VMess، Trojan، WireGuard، SOCKS، HTTP، Hysteria2 و TUIC؛ پایش heartbeat</p></div>
       <Button variant="neutral" onClick={refresh}><RefreshCw className="h-4 w-4"/> تازه‌سازی</Button>
     </div>
+    <Card className="border-primary/30"><CardContent className="p-4">
+      <div className="flex items-center gap-2 text-sm font-semibold"><Activity className="h-4 w-4 text-primary"/> موقعیت واقعی اجرای Railway</div>
+      <div className="mt-2 text-lg font-heading">{runtime?.railway ? (runtime.railwayReplica.region || "منطقه توسط Railway اعلام نشده") : "این اجرا روی Railway نیست"}</div>
+      <div className="mt-1 break-all text-xs text-text/50">Replica ID: {runtime?.railwayReplica.id || "—"}</div>
+      <p className="mt-2 text-xs leading-6 text-text/60">این فقط منطقه همین سرویس را نشان می‌دهد؛ Edge POPهای Railway نود VPN نیستند. پلن Free دائمی یک Replica دارد و انتخاب منطقه یا چندمنطقه‌ای‌کردن سرویس را ارائه نمی‌کند.</p>
+    </CardContent></Card>
     <div className="grid gap-3 sm:grid-cols-3">
       <Card><CardContent className="p-4"><div className="text-xs text-text/60">کل نودها</div><div className="mt-1 text-2xl font-heading">{nodes.length}</div></CardContent></Card>
       <Card><CardContent className="p-4"><div className="text-xs text-text/60">آنلاین</div><div className="mt-1 text-2xl font-heading">{nodes.filter(n=>n.status==="online" && n.enabled).length}</div></CardContent></Card>
