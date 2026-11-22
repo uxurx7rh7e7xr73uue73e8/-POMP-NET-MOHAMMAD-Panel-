@@ -24,11 +24,16 @@ if (!controller.startsWith("https://") && !["localhost", "127.0.0.1"].includes(n
 }
 const token = process.env.POMP_NODE_TOKEN;
 const xrayBin = process.env.XRAY_BIN || "/usr/local/bin/xray";
+const singBoxBin = process.env.SING_BOX_BIN || "/usr/local/bin/sing-box";
 const dataDir = process.env.POMP_NODE_DATA_DIR || "/var/lib/pompnet-node";
 const configFile = path.join(dataDir, "config.json");
+const singBoxConfigFile = path.join(dataDir, "sing-box.json");
 const pollMs = Math.max(10000, Number(process.env.POMP_NODE_POLL_MS || 30000));
 const agentVersion = "1.0.0";
 let child = null;
+let singBoxChild = null;
+let singBoxExpected = false;
+let currentSingBoxHash = "";
 let currentHash = "";
 let stopping = false;
 
@@ -66,6 +71,76 @@ function stopXray() {
     old.once("exit", () => { clearTimeout(timer); resolve(); });
     old.kill("SIGTERM");
   });
+}
+
+function stopSingBox() {
+  if (!singBoxChild) return Promise.resolve();
+  const old = singBoxChild;
+  singBoxChild = null;
+  return new Promise(resolve => {
+    if (old.exitCode !== null) return resolve();
+    const timer = setTimeout(() => {
+      if (old.exitCode === null) old.kill("SIGKILL");
+      resolve();
+    }, 5000);
+    timer.unref();
+    old.once("exit", () => { clearTimeout(timer); resolve(); });
+    old.kill("SIGTERM");
+  });
+}
+
+async function startSingBox(source) {
+  const inbounds = source?.inbounds || [];
+  if (!inbounds.length) {
+    singBoxExpected = false;
+    currentSingBoxHash = "";
+    await stopSingBox();
+    return;
+  }
+  const cert = process.env.POMP_NODE_TLS_CERT_FILE || "";
+  const key = process.env.POMP_NODE_TLS_KEY_FILE || "";
+  if (!cert || !key || !fs.existsSync(cert) || !fs.existsSync(key)) {
+    throw new Error("Hysteria2/TUIC node inbounds require valid POMP_NODE_TLS_CERT_FILE and POMP_NODE_TLS_KEY_FILE.");
+  }
+  if (!fs.existsSync(singBoxBin)) throw new Error(`sing-box binary not found at ${singBoxBin}; install sing-box v1.14.4.`);
+  const cfg = structuredClone(source);
+  for (const inbound of cfg.inbounds) {
+    inbound.tls = { ...(inbound.tls || {}), enabled: true, certificate_path: cert, key_path: key };
+  }
+  const serialized = JSON.stringify(cfg);
+  const hash = sha256(serialized);
+  singBoxExpected = true;
+  if (hash === currentSingBoxHash && singBoxChild && singBoxChild.exitCode === null) return;
+  const temp = singBoxConfigFile + ".next";
+  fs.writeFileSync(temp, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+  const check = spawnSync(singBoxBin, ["check", "-c", temp], { encoding: "utf8", timeout: 20000 });
+  if (check.status !== 0) {
+    fs.rmSync(temp, { force: true });
+    throw new Error(`sing-box config validation failed: ${(check.stderr || check.stdout || "unknown error").slice(0, 700)}`);
+  }
+  fs.renameSync(temp, singBoxConfigFile);
+  await stopSingBox();
+  const proc = spawn(singBoxBin, ["run", "-c", singBoxConfigFile], { cwd: dataDir, stdio: "inherit" });
+  singBoxChild = proc;
+  proc.on("exit", (code, signal) => {
+    if (singBoxChild === proc) singBoxChild = null;
+    if (!stopping) console.error(`[POMP NODE] sing-box exited (code=${code}, signal=${signal}). Next poll will retry.`);
+  });
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    proc.once("error", error => { if (!settled) { settled = true; reject(error); } });
+    proc.once("exit", (code, signal) => { if (!settled) { settled = true; reject(new Error(`sing-box exited during startup (code=${code}, signal=${signal})`)); } });
+    proc.once("spawn", () => {
+      setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          if (proc.exitCode !== null) reject(new Error(`sing-box exited during startup (code=${proc.exitCode})`));
+          else resolve();
+        }
+      }, 500);
+    });
+  });
+  currentSingBoxHash = hash;
 }
 
 async function startXray() {
@@ -122,7 +197,7 @@ async function applyConfig() {
   nodeConfig.log = { ...(nodeConfig.log || {}), loglevel: "warning", access: path.join(dataDir, "access.log"), error: path.join(dataDir, "error.log") };
   const serialized = JSON.stringify(nodeConfig);
   const hash = result.configHash || sha256(serialized);
-  if (hash === currentHash && child && child.exitCode === null) return hash;
+  if (hash === currentHash && child && child.exitCode === null) { await startSingBox(result.singBoxConfig); return hash; }
 
   const temp = configFile + ".next";
   fs.writeFileSync(temp, JSON.stringify(nodeConfig, null, 2), { mode: 0o600 });
@@ -132,6 +207,7 @@ async function applyConfig() {
     await stopXray();
     await startXray();
     currentHash = hash;
+    await startSingBox(result.singBoxConfig);
     console.log(`[POMP NODE] Applied controller configuration ${hash.slice(0, 12)}`);
   } catch (error) {
     if (previous) {
@@ -145,7 +221,7 @@ async function applyConfig() {
 }
 
 async function heartbeat(error = "") {
-  const runtimeError = error || (!child || child.exitCode !== null ? "Xray process is not running" : "");
+  const runtimeError = error || (!child || child.exitCode !== null ? "Xray process is not running" : (singBoxExpected && (!singBoxChild || singBoxChild.exitCode !== null) ? "sing-box process is not running" : ""));
   return request("/api/node-agent/heartbeat", {
     method: "POST",
     body: JSON.stringify({
@@ -177,6 +253,7 @@ async function cycle() {
 async function shutdown() {
   stopping = true;
   await stopXray();
+  await stopSingBox();
   process.exit(0);
 }
 process.on("SIGINT", shutdown);
