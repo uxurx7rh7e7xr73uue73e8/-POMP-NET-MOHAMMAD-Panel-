@@ -28,7 +28,7 @@ import { rateLimit } from "./ratelimit.js";
 import { sendDailyBackup, startTelegramBot, notifyExpiringUsers } from "./bot.js";
 import { refreshIpInfo } from "./ipinfo.js";
 import { SIDERAIL_SIGNATURE, watermark } from "./brand.js";
-import { singBoxStatus } from "./singbox.js";
+import { singBoxStatus, startSingBox, restartSingBox } from "./singbox.js";
 
 console.log(SIDERAIL_SIGNATURE);
 
@@ -89,6 +89,7 @@ attachTunnel(server);
 server.listen(config.port, config.host, async () => {
   console.log(`POMP NET MOHAMMAD — QUANTUM NEXUS listening on http://${config.host}:${config.port}`);
   await startXray();
+  await startSingBox();
   startTelegramBot();
   void refreshIpInfo();
 });
@@ -125,6 +126,7 @@ setInterval(() => {
       lastAdminQuotaState = nextState;
       console.log("[POMP NET] Delegated administrator quota state changed; reloading Xray.");
       restartXray();
+      restartSingBox();
     }
   } catch (error) {
     console.error("[POMP NET admin quota enforcement]", error);
@@ -133,7 +135,7 @@ setInterval(() => {
 
 setInterval(() => {
   try {
-    if (expireInbounds() > 0) restartXray();
+    if (expireInbounds() > 0) { restartXray(); restartSingBox(); }
   } catch (error) {
     console.error("[POMP NET inbound expiry]", error);
   }
