@@ -148,8 +148,8 @@ export function updateAdmin(
     patch.dataLimit !== undefined ? Math.round(patch.dataLimit * 1024 ** 3) : row.data_limit;
   const hash = patch.password ? bcrypt.hashSync(patch.password, 10) : row.password_hash;
   db.prepare(
-    "UPDATE admins SET permissions = ?, data_limit = ?, password_hash = ? WHERE id = ?",
-  ).run(perms, dataLimit, hash, id);
+    "UPDATE admins SET permissions = ?, data_limit = ?, password_hash = ?, token_version = token_version + ? WHERE id = ?",
+  ).run(perms, dataLimit, hash, patch.password ? 1 : 0, id);
   return { ok: true };
 }
 
