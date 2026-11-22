@@ -1,9 +1,9 @@
 import * as React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
-  Activity, Cpu, MemoryStick, HardDrive, Users, UserCheck, Database,
+  Activity, Users, UserCheck, Database,
   CircleCheck, CircleX, RotateCw, Download, Upload, Server, Copy,
-  ExternalLink, Wifi, ShieldCheck, Clock3, Router, ArrowDownToLine,
+  ExternalLink, Wifi, ShieldCheck, Clock3, Router,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, exportBackupUrl } from "@/lib/api";
