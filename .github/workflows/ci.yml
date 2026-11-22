@@ -163,6 +163,10 @@ jobs:
           req.end();
           NODE
 
+          docker cp pompnet-ci:/data/xray/xray /tmp/pompnet-xray
+          chmod +x /tmp/pompnet-xray
+          node scripts/client-e2e.mjs /tmp/pompnet-sub.txt /tmp/pompnet-xray
+
           echo "CI stage: restart same service container with the same persistent volume"
           docker rm -f pompnet-ci
           docker run -d --name pompnet-ci -p 18080:8080 \
