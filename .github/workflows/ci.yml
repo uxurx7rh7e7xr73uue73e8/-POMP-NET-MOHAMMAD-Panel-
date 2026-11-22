@@ -75,7 +75,7 @@ jobs:
           openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/pompnet-certs/server.key -out /tmp/pompnet-certs/server.crt -days 1 -subj "/CN=ci.example.com"
           docker run -d --name pompnet-ci -p 18080:8080 \
             -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \
-            -p 10808:10808/tcp -p 10809:10809/tcp -p 10810:10810/tcp -p 18443:18443/tcp \
+            -p 10808:10808/tcp -p 10809:10809/tcp -p 10810:10810/tcp -p 18443:18443/tcp -p 10811:10811/tcp -p 10812:10812/tcp \
             -e NODE_ENV=production \
             -e PORT=8080 \
             -e SIDERAIL_DATA_DIR=/data \
@@ -233,6 +233,41 @@ jobs:
             sleep 2
           done
           if [ "$singbox_ready" -ne 1 ]; then cat /tmp/pompnet-singbox-health.json 2>/dev/null || true; exit 1; fi
+          HY2_PORT="$hy2_port" TUIC_PORT="$tuic_port" node <<'NODE'
+          const fs = require("node:fs");
+          const user = require("/tmp/pompnet-users.json").users.find(item => item.email === "sample-user");
+          if (!user?.uuid || !user?.password) throw new Error("Sample user credentials missing for UDP client smoke tests");
+          const configs = [
+            { type: "hysteria2", port: 10811, serverPort: Number(process.env.HY2_PORT), auth: { password: user.password } },
+            { type: "tuic", port: 10812, serverPort: Number(process.env.TUIC_PORT), auth: { uuid: user.uuid, password: user.password } },
+          ];
+          for (const item of configs) {
+            const outbound = {
+              type: item.type,
+              tag: "proxy",
+              server: "127.0.0.1",
+              server_port: item.serverPort,
+              ...item.auth,
+              ...(item.type === "tuic" ? { congestion_control: "bbr", udp_relay_mode: "native" } : {}),
+              tls: { enabled: true, server_name: "ci.example.com", insecure: true, alpn: ["h3"] },
+            };
+            const config = {
+              log: { level: "warn" },
+              inbounds: [{ type: "socks", tag: "socks-in", listen: "0.0.0.0", listen_port: item.port }],
+              outbounds: [outbound],
+              route: { final: "proxy" },
+            };
+            fs.writeFileSync("/tmp/pompnet-" + item.type + "-client.json", JSON.stringify(config));
+          }
+          NODE
+          for protocol in hysteria2 tuic; do
+            docker cp "/tmp/pompnet-$protocol-client.json" "pompnet-ci:/tmp/pompnet-$protocol-client.json"
+            docker exec -d pompnet-ci /usr/local/bin/sing-box run -c "/tmp/pompnet-$protocol-client.json"
+          done
+          sleep 3
+          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10811 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
+          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10812 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
+          echo "Real sing-box client traffic round-trips passed for Hysteria2 and TUIC over UDP."
           token=$(node -e 'process.stdout.write(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").sub_token)')
           echo "CI stage: fetch subscription"
                     curl -fsS "http://127.0.0.1:18080/sub/$token?raw=1" | base64 -d > /tmp/pompnet-udp-sub.txt
