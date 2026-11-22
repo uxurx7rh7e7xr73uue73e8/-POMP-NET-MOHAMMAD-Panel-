@@ -33,24 +33,6 @@ function inboundClients(inbound: Inbound, users: UserWithInbounds[]) {
 
 function protocolSettings(inbound: Inbound, users: UserWithInbounds[]) {
   const clients = inboundClients(inbound, users);
-  if (inbound.protocol === "wireguard") {
-    const server = ensureWireGuardServerKeys();
-    return {
-      secretKey: server.privateKey,
-      peers: clients.map((client) => {
-        const peer = ensureWireGuardPeer(client);
-        return {
-          publicKey: peer.public_key,
-          preSharedKey: peer.preshared_key,
-          allowedIPs: [`${peer.address}/32`],
-          email: client.email,
-          level: 0,
-        };
-      }),
-      mtu: 1420,
-      noKernelTun: true,
-    };
-  }
   if (inbound.protocol === "socks") {
     return {
       auth: "password",
@@ -121,19 +103,17 @@ function buildRoutingRules(inbounds: Inbound[]) {
 
 export function buildXrayConfig(options: { remoteNode?: boolean; inboundIds?: number[] } = {}) {
   const inbounds = listEnabledInbounds()
-    .filter((inbound) => inbound.protocol !== "hysteria2" && inbound.protocol !== "tuic")
-    .filter((inbound) => !options.remoteNode || (inbound.protocol !== "hysteria2" && inbound.protocol !== "tuic"))
     .filter((inbound) => options.inboundIds === undefined || options.inboundIds.includes(inbound.id))
     .filter((inbound) => options.remoteNode || isPubliclyReachableInbound(inbound));
   const users = listUsers();
 
   const inboundConfigs = inbounds.map((ib) => ({
     tag: ib.tag,
-    listen: options.remoteNode || ib.protocol === "wireguard" || ib.protocol === "socks" || ib.protocol === "http" ? "0.0.0.0" : "127.0.0.1",
+    listen: options.remoteNode ? "0.0.0.0" : "127.0.0.1",
     port: ib.port,
     protocol: ib.protocol,
     settings: protocolSettings(ib, users),
-    ...(ib.protocol === "wireguard" || ib.protocol === "socks" || ib.protocol === "http" ? {} : { streamSettings: streamSettings(ib) }),
+    streamSettings: streamSettings(ib),
     sniffing: { enabled: false, destOverride: [] },
   }));
 
