@@ -220,7 +220,7 @@ api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) =
     protocol: z.enum(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]),
     transport: z.enum(["ws", "xhttp", "httpupgrade", "udp", "tcp"]).optional().default("xhttp"),
     expireDays: z.number().int().min(0).max(3650).optional(),
-    serverName: z.string().trim().max(253).optional(),
+    serverName: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
   if (body.data.protocol === "hysteria2" || body.data.protocol === "tuic") {
@@ -229,7 +229,7 @@ api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) =
     body.data.transport = "udp";
   }
   try {
-    const inbound = createInbound({ ...body.data, host: body.data.serverName });
+    const inbound = createInbound({ ...body.data, host: body.data.protocol === "hysteria2" || body.data.protocol === "tuic" ? body.data.serverName : "" });
     logActivity(req.admin!.username, "inbound_create", `${inbound.tag} : ${inbound.port}`);
     restartXray();
     res.json(inbound);
