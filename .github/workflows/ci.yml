@@ -171,6 +171,7 @@ jobs:
           # Keep remote-node provisioning out of this local-only runtime test.
           curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/users > /tmp/pompnet-users.json
           curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/inbounds > /tmp/pompnet-inbounds.json
+          export POMP_CI_TLS_CERT_SHA256="$(openssl x509 -in /tmp/pompnet-certs/server.crt -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':')"
           node <<'NODE'
           const fs = require("node:fs");
           const users = require("/tmp/pompnet-users.json").users;
@@ -191,7 +192,7 @@ jobs:
               outbounds: [{
                 protocol: item.protocol,
                 settings: item.settings,
-                streamSettings: { network: "ws", security: "tls", tlsSettings: { serverName: "ci.example.com", allowInsecure: true }, wsSettings: { path: inbound.path, headers: { Host: "ci.example.com" } } },
+                streamSettings: { network: "ws", security: "tls", tlsSettings: { serverName: "ci.example.com", pinnedPeerCertSha256: process.env.POMP_CI_TLS_CERT_SHA256 }, wsSettings: { path: inbound.path, headers: { Host: "ci.example.com" } } },
               }],
             };
             fs.writeFileSync("/tmp/pompnet-" + item.protocol + "-client.json", JSON.stringify(config));
