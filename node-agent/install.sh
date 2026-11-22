@@ -7,14 +7,17 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 NODE_BIN="$(command -v node || true)"
-if [ -z "$NODE_BIN" ]; then
-  echo "Node.js 22+ is required. Install Node.js first."
-  exit 1
-fi
-NODE_MAJOR="$("$NODE_BIN" -p 'Number(process.versions.node.split(".")[0])')"
+NODE_MAJOR=0
+if [ -n "$NODE_BIN" ]; then NODE_MAJOR="$("$NODE_BIN" -p 'Number(process.versions.node.split(".")[0])')"; fi
 if [ "$NODE_MAJOR" -lt 22 ]; then
-  echo "Node.js 22+ is required; found $("$NODE_BIN" --version)."
-  exit 1
+  if ! command -v apt-get >/dev/null 2>&1; then echo "Automatic Node.js installation requires Ubuntu/Debian apt."; exit 1; fi
+  apt-get update
+  apt-get install -y ca-certificates curl gnupg
+  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  apt-get install -y nodejs
+  NODE_BIN="$(command -v node)"
+  NODE_MAJOR="$("$NODE_BIN" -p 'Number(process.versions.node.split(".")[0])')"
+  if [ "$NODE_MAJOR" -lt 22 ]; then echo "Node.js 22 installation failed."; exit 1; fi
 fi
 
 read -r -p "Panel HTTPS URL (for example https://panel.example.com): " CONTROLLER
@@ -55,7 +58,13 @@ if [ ! -x "$SING_BOX_BIN" ]; then
 fi
 "$SING_BOX_BIN" version >/dev/null
 if [ ! -x "$XRAY_BIN" ]; then
-  echo "Xray is not installed at $XRAY_BIN. Hysteria2/TUIC-only nodes can still run sing-box; install Xray before assigning VLESS/VMess/Trojan/WireGuard/SOCKS/HTTP."
+  echo "Installing official Xray-core v26.11.9..."
+  TMP_XRAY_INSTALL="$(mktemp)"
+  curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh -o "$TMP_XRAY_INSTALL"
+  bash "$TMP_XRAY_INSTALL" install --version v26.11.9 --without-geodata --manually-restart-later
+  rm -f "$TMP_XRAY_INSTALL"
+  XRAY_BIN="/usr/local/bin/xray"
+  if [ ! -x "$XRAY_BIN" ]; then echo "Xray-core installation failed."; exit 1; fi
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
