@@ -119,6 +119,7 @@ function prepareNodeConfig(source) {
 async function applyConfig() {
   const result = await request("/api/node-agent/config");
   const nodeConfig = prepareNodeConfig(result.config);
+  nodeConfig.log = { ...(nodeConfig.log || {}), loglevel: "warning", access: path.join(dataDir, "access.log"), error: path.join(dataDir, "error.log") };
   const serialized = JSON.stringify(nodeConfig);
   const hash = result.configHash || sha256(serialized);
   if (hash === currentHash && child && child.exitCode === null) return hash;
