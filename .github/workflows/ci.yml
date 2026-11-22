@@ -186,7 +186,7 @@ jobs:
             const inbound = inbounds.find(candidate => candidate.tag === item.tag);
             if (!inbound?.path) throw new Error("Missing seeded " + item.tag + " inbound");
             const config = {
-              log: { loglevel: "warning" },
+              log: { loglevel: "debug" },
               inbounds: [{ listen: "0.0.0.0", port: item.port, protocol: "socks", settings: { auth: "noauth", udp: false } }],
               outbounds: [{
                 protocol: item.protocol,
@@ -202,12 +202,33 @@ jobs:
           for item in "vless:10808" "vmess:10809" "trojan:10810"; do
             protocol="${item%%:*}"
             docker cp "/tmp/pompnet-$protocol-client.json" pompnet-ci:/tmp/pompnet-$protocol-client.json
-            docker exec -d pompnet-ci /data/xray/xray run -config "/tmp/pompnet-$protocol-client.json"
+            docker exec pompnet-ci /data/xray/xray run -test -config "/tmp/pompnet-$protocol-client.json"
+            docker exec -d pompnet-ci sh -c "/data/xray/xray run -config /tmp/pompnet-$protocol-client.json > /tmp/pompnet-$protocol-client.log 2>&1"
           done
-          sleep 3
-          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10808 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
-          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10809 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
-          curl --fail --silent --show-error --socks5-hostname 127.0.0.1:10810 http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"
+          for item in "vless:10808" "vmess:10809" "trojan:10810"; do
+            protocol="${item%%:*}"
+            port="${item##*:}"
+            ready=0
+            for attempt in $(seq 1 20); do
+              if docker exec pompnet-ci node -e 'const net=require("node:net");const s=net.connect(Number(process.argv[1]),"127.0.0.1");s.once("connect",()=>{s.destroy();process.exit(0)});s.once("error",()=>process.exit(1))' "$port"; then ready=1; break; fi
+              sleep 1
+            done
+            if [ "$ready" -ne 1 ]; then
+              echo "Xray $protocol client failed to open SOCKS listener on $port"
+              docker exec pompnet-ci cat "/tmp/pompnet-$protocol-client.log" || true
+              exit 1
+            fi
+          done
+          for item in "vless:10808" "vmess:10809" "trojan:10810"; do
+            protocol="${item%%:*}"
+            port="${item##*:}"
+            if ! curl --fail --silent --show-error --socks5-hostname "127.0.0.1:$port" http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"; then
+              echo "Xray $protocol WebSocket round-trip failed; client diagnostics follow:"
+              docker exec pompnet-ci cat "/tmp/pompnet-$protocol-client.log" || true
+              docker logs pompnet-ci || true
+              exit 1
+            fi
+          done
           echo "Real Xray client traffic round-trips passed for VLESS/WS, VMess/WS and Trojan/WS through the panel WebSocket tunnel."
           user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").id))')
           echo "CI stage: assign sample user"
