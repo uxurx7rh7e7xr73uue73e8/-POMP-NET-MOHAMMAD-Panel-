@@ -135,7 +135,7 @@ jobs:
           const assert = require("node:assert/strict");
           const fs = require("node:fs");
           const http = require("node:http");
-          const links = fs.readFileSync("/tmp/pompnet-sub.txt", "utf8").trim().split(/\\r?\\n/);
+          const links = fs.readFileSync("/tmp/pompnet-sub.txt", "utf8").trim().split(/\r?\n/);
           const vlessWs = links.find(x => x.startsWith("vless://") && new URL(x).searchParams.get("type") === "ws");
           const vlessXhttp = links.find(x => x.startsWith("vless://") && new URL(x).searchParams.get("type") === "xhttp");
           assert.ok(vlessWs, "Missing VLESS WebSocket link");
