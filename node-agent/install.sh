@@ -31,6 +31,11 @@ if [ "${#NODE_TOKEN}" -lt 40 ]; then
 fi
 read -r -p "Xray binary path [/usr/local/bin/xray]: " XRAY_BIN
 XRAY_BIN="${XRAY_BIN:-/usr/local/bin/xray}"
+read -r -p "TLS certificate path for VLESS/VMess/Trojan (leave empty if not used): " TLS_CERT
+read -r -p "TLS private-key path for VLESS/VMess/Trojan (leave empty if not used): " TLS_KEY
+if [ -n "$TLS_CERT" ] || [ -n "$TLS_KEY" ]; then
+  if [ ! -f "$TLS_CERT" ] || [ ! -f "$TLS_KEY" ]; then echo "Both TLS certificate and key files must exist."; exit 1; fi
+fi
 if [ ! -x "$XRAY_BIN" ]; then
   echo "Xray executable not found at $XRAY_BIN. Install Xray-core first."
   exit 1
@@ -48,6 +53,8 @@ POMP_NODE_TOKEN=$NODE_TOKEN
 POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
 XRAY_BIN=$XRAY_BIN
+POMP_NODE_TLS_CERT_FILE=$TLS_CERT
+POMP_NODE_TLS_KEY_FILE=$TLS_KEY
 EOF
 sed -i "s|^ExecStart=.*|ExecStart=$NODE_BIN /opt/pompnet-node/agent.mjs|" /etc/systemd/system/pompnet-node.service
 
