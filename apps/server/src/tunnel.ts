@@ -25,7 +25,7 @@ function tunnelDebug(event: string, details: Record<string, unknown> = {}): void
 xhttpProxy.on("error", () => {});
 
 const portToIp = new Map<number, { ip: string; ts: number }>();
-const activeTunnels = new Set<Socket>();
+const activeTunnels = new Set<object>();
 const drainCallbacks = new Set<() => void>();
 let tunnelMaintenance = false;
 
@@ -39,7 +39,7 @@ export function endTunnelMaintenance(): void {
   tunnelMaintenance = false;
 }
 
-function releaseTunnel(socket: Socket): void {
+function releaseTunnel(socket: object): void {
   activeTunnels.delete(socket);
   if (activeTunnels.size === 0) {
     for (const callback of drainCallbacks) callback();
@@ -174,6 +174,13 @@ export function attachTunnel(server: Server): void {
 }
 
 export function tryTunnelHttp(req: IncomingMessage, res: import("node:http").ServerResponse): boolean {
+  if (tunnelMaintenance) {
+    res.statusCode = 503;
+    res.setHeader("Retry-After", "2");
+    res.setHeader("Connection", "close");
+    res.end();
+    return true;
+  }
   const inbound = matchInbound(req.url);
   if (!inbound || inbound.transport !== "xhttp") return false;
   if (!ipAllowed(inbound, clientIp(req))) {
@@ -181,6 +188,17 @@ export function tryTunnelHttp(req: IncomingMessage, res: import("node:http").Ser
     res.end();
     return true;
   }
+  const token = {};
+  activeTunnels.add(token);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    releaseTunnel(token);
+  };
+  res.once("finish", release);
+  res.once("close", release);
+  req.once("aborted", release);
   xhttpProxy.web(req, res, { target: `http://127.0.0.1:${inbound.port}` });
   return true;
 }
