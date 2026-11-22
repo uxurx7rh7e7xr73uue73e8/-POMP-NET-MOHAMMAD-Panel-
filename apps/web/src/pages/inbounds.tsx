@@ -90,11 +90,6 @@ export default function InboundsPage() {
         <div>
           <h1 className="font-heading text-3xl">{t("inbounds")}</h1>
           <p className="text-sm font-base text-text/60">مدیریت ورودی‌های واقعی Xray، پورت‌ها و زمان اعتبار</p>
-          {capabilities && !capabilities.railway && (!capabilities.singBox.tlsConfigured || !capabilities.singBox.binaryAvailable) && (
-            <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
-              برای فعال‌سازی Hysteria2 و TUIC باید sing-box نصب باشد و متغیرهای SINGBOX_TLS_CERT_FILE و SINGBOX_TLS_KEY_FILE به گواهی و کلید معتبر TLS اشاره کنند. وضعیت موتور: {capabilities.singBox.binaryAvailable ? "نصب است" : "نصب نیست"} · گواهی: {capabilities.singBox.tlsConfigured ? "آماده" : "تنظیم نشده"}.
-            </div>
-          )}
           {capabilities?.railway && (
             <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
               <strong>محدودیت شبکه Railway:</strong> WireGuard، Hysteria2 و TUIC از لبه Railway UDP عمومی نمی‌گیرند؛ اما می‌توانی هر سه را به یک نود لینوکسی مستقل در بخش «مدیریت نودها» تخصیص بدهی. Agent روی نود Xray و sing-box را اجرا می‌کند و لینک اشتراک پس از آنلاین‌شدن نود به آدرس عمومی همان نود هدایت می‌شود. برای Hysteria2/TUIC، گواهی TLS معتبر و پورت UDP باز روی نود لازم است. برای SOCKS5 یا HTTP خود سرویس Railway فقط یک پورت TCP Proxy دارد.
