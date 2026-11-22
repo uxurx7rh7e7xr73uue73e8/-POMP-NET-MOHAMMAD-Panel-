@@ -239,7 +239,7 @@ export function buildUserLinks(
       // Healthy authenticated nodes publish their own endpoint for each
       // explicitly assigned Xray inbound. This also provides a real fallback
       // for WireGuard when the controller itself runs on Railway (no public UDP).
-      if (["vless", "vmess", "trojan", "wireguard", "socks", "http"].includes(inbound.protocol)) for (const node of activeNodeTargets(inbound.id)) {
+      if (["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"].includes(inbound.protocol)) for (const node of activeNodeTargets(inbound.id)) {
         const nodeInbound = { ...inbound, id: -inbound.id, tag: `${inbound.tag}-${node.name}` };
         const nodePort = inbound.port;
         links.push({
