@@ -151,8 +151,22 @@ export async function startXray(): Promise<void> {
   const capture = (chunk: Buffer) => {
     diagnostic = (diagnostic + chunk.toString("utf8")).slice(-8000);
   };
-  child.stdout?.on("data", capture);
-  child.stderr?.on("data", capture);
+  child.stdout?.on("data", (chunk: Buffer) => {
+    capture(chunk);
+    if (process.env.POMP_TUNNEL_DEBUG === "1") {
+      for (const line of chunk.toString("utf8").split(/\\r?\\n/).filter(Boolean)) {
+        console.log("[POMP Xray stdout]", line);
+      }
+    }
+  });
+  child.stderr?.on("data", (chunk: Buffer) => {
+    capture(chunk);
+    if (process.env.POMP_TUNNEL_DEBUG === "1") {
+      for (const line of chunk.toString("utf8").split(/\\r?\\n/).filter(Boolean)) {
+        console.error("[POMP Xray stderr]", line);
+      }
+    }
+  });
   child.on("exit", (code, signal) => {
     if (proc === child) {
       proc = null;
