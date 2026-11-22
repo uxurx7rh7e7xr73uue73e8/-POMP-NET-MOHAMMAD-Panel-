@@ -15,6 +15,8 @@ let startedAt = 0;
 let lastError = "";
 
 function udpInbounds() {
+  const railway = process.env.RAILWAY_PROJECT_ID || process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_SERVICE_ID;
+  if (railway) return [];
   return listEnabledInbounds().filter((inbound) => inbound.protocol === "hysteria2" || inbound.protocol === "tuic");
 }
 
