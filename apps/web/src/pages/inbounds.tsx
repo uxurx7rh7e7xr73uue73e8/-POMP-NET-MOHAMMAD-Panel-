@@ -54,7 +54,7 @@ export default function InboundsPage() {
     mutationFn: api.createInbound,
     onSuccess: (ib) => {
       refresh();
-      toast.push("success", `Inbound واقعی ${ib.tag} روی پورت ${ib.port} ساخته شد؛ اعمال نهایی پس از بارگذاری مجدد Xray.`);
+      toast.push("success", `Inbound واقعی ${ib.tag} روی پورت ${ib.port} در موتور ${ib.protocol === "hysteria2" || ib.protocol === "tuic" ? "sing-box" : "Xray"} ثبت شد؛ اعمال نهایی پس از بارگذاری موتور انجام می‌شود.`);
       setTag("POMP-VLESS-PREMIUM");
     },
     onError: (e: Error) => toast.push("error", e.message),
