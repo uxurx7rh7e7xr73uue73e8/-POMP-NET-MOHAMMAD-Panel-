@@ -87,7 +87,7 @@ export default function SupportPage() {
             {ticketsQuery.isError && <p className="p-5 text-center text-sm text-red-300">دریافت تیکت‌ها ناموفق بود. اتصال و مجوز کاربران را بررسی کنید.</p>}
             {!ticketsQuery.isLoading && visible.length===0 && <p className="p-6 text-center text-sm text-text/50">تیکتی در این فیلتر وجود ندارد.</p>}
             {visible.map(ticket=><button key={ticket.id} onClick={()=>setSelected(ticket.id)} className={"w-full rounded-base border-2 p-3 text-right transition "+(selected===ticket.id?"border-violet-400/70 bg-violet-500/10":"border-border/50 bg-bg/30 hover:border-violet-400/40")}>
-              <div className="flex items-center justify-between gap-2"><span className="font-heading text-sm">#{ticket.id} · {ticket.subject}</span><Badge variant={ticket.status==="open"?"warning":ticket.status==="closed"?"neutral":"info"}>{statusText[ticket.status]}</Badge></div>
+              <div className="flex items-center justify-between gap-2"><span className="font-heading text-sm">#{ticket.id} · {ticket.subject}</span><Badge variant={ticket.status==="open"?"warning":ticket.status==="closed"?"neutral":"info"}>{statusText[ticket.status]}</Badge><Badge variant={ticket.priority==="high"?"warning":"neutral"}>{priorityText[ticket.priority]}</Badge></div>
               <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-text/55"><span>{ticket.user_email || ticket.telegram_id || "کاربر ناشناس"}</span><span>{ticket.message_count} پیام</span></div>
               <div className="mt-1 text-[10px] text-text/40">{date(ticket.updated_at)}</div>
             </button>)}
