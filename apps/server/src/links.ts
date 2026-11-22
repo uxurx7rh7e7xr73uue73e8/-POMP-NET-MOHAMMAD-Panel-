@@ -128,6 +128,20 @@ function wireGuardLink(ctx: LinkContext): string {
   return `wireguard://${peer.private_key}@${address}:${inbound.port}?${params}#${encodeURIComponent(label)}`;
 }
 
+function hysteria2Link(ctx: LinkContext): string {
+  const { user, inbound, address, host } = ctx;
+  const serverName = inbound.host || host;
+  const query = qs({ sni: serverName, alpn: "h3", obfs: "" });
+  return `hysteria2://${encodeURIComponent(user.password)}@${address}:${inbound.port}/?${query}#${encodeURIComponent(inboundDisplayLabel(inbound, user, ctx.allInbounds))}`;
+}
+
+function tuicLink(ctx: LinkContext): string {
+  const { user, inbound, address, host } = ctx;
+  const serverName = inbound.host || host;
+  const query = qs({ congestion_control: "bbr", udp_relay_mode: "native", alpn: "h3", sni: serverName });
+  return `tuic://${user.uuid}:${encodeURIComponent(user.password)}@${address}:${inbound.port}?${query}#${encodeURIComponent(inboundDisplayLabel(inbound, user, ctx.allInbounds))}`;
+}
+
 function proxyLink(ctx: LinkContext): string {
   const { user, inbound, address } = ctx;
   const scheme = inbound.protocol === "socks" ? "socks" : "http";
@@ -171,6 +185,10 @@ export function buildLink(ctx: LinkContext): string {
       return vmessLink(ctx);
     case "wireguard":
       return wireGuardLink(ctx);
+    case "hysteria2":
+      return hysteria2Link(ctx);
+    case "tuic":
+      return tuicLink(ctx);
     case "socks":
     case "http":
       return proxyLink(ctx);
