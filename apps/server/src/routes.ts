@@ -476,8 +476,9 @@ api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
     inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
-  if (body.data.inboundIds.some((id) => getInbound(id)?.protocol !== "wireguard")) {
-    res.status(400).json({ error: "The current remote node agent supports WireGuard inbounds only." }); return;
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http"]);
+  if (body.data.inboundIds.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
+    res.status(400).json({ error: "Remote Xray nodes support VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP. Hysteria2/TUIC require the sing-box node runtime." }); return;
   }
   if (body.data.endpoint) {
     try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
@@ -499,8 +500,9 @@ api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
     enabled: z.boolean().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node update" }); return; }
-  if (body.data.inboundIds?.some((id) => getInbound(id)?.protocol !== "wireguard")) {
-    res.status(400).json({ error: "The current remote node agent supports WireGuard inbounds only." }); return;
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http"]);
+  if (body.data.inboundIds?.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
+    res.status(400).json({ error: "Remote Xray nodes support VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP. Hysteria2/TUIC are not supported by this Xray agent." }); return;
   }
   const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as { name: string; endpoint: string; inbound_ids: string; enabled: number } | undefined;
   if (!current) { res.status(404).json({ error: "node not found" }); return; }
