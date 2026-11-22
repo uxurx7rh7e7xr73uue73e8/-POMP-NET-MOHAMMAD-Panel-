@@ -78,8 +78,10 @@ jobs:
       - name: Start isolated container
         run: |
           mkdir -p /tmp/pompnet-certs
+          docker network create pompnet-ci-net
+          docker volume create pompnet-ci-data
           openssl req -x509 -nodes -newkey rsa:2048 -keyout /tmp/pompnet-certs/server.key -out /tmp/pompnet-certs/server.crt -days 1 -subj "/CN=ci.example.com"
-          docker run -d --name pompnet-ci -p 18080:8080 \
+          docker run -d --name pompnet-ci --network pompnet-ci-net -p 18080:8080 \
             -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \
             -p 10808:10808/tcp -p 10809:10809/tcp -p 10810:10810/tcp -p 18443:18443/tcp -p 10811:10811/tcp -p 10812:10812/tcp \
             -e NODE_ENV=production \
@@ -91,6 +93,7 @@ jobs:
             -e SINGBOX_TLS_KEY_FILE=/run/pompnet-certs/server.key \
             -e POMP_TUNNEL_DEBUG=1 \
             -v /tmp/pompnet-certs:/run/pompnet-certs:ro \
+            -v pompnet-ci-data:/data \
             pompnet-quantum-nexus:ci
       - name: Verify API and live Xray process
         shell: bash
@@ -100,7 +103,9 @@ jobs:
           cleanup() {
             if [ -n "$agent_pid" ]; then kill "$agent_pid" >/dev/null 2>&1 || true; fi
             docker logs pompnet-ci || true
-            docker rm -f pompnet-ci >/dev/null 2>&1 || true
+            docker rm -f pompnet-ci pompnet-roundtrip >/dev/null 2>&1 || true
+            docker network rm pompnet-ci-net >/dev/null 2>&1 || true
+            docker volume rm pompnet-ci-data >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
           ready=0
@@ -207,7 +212,12 @@ jobs:
             fs.writeFileSync("/tmp/pompnet-" + item.protocol + "-client.json", JSON.stringify(config));
           }
           NODE
-          docker exec -d pompnet-ci node -e 'require("node:http").createServer((_req,res)=>res.end("POMP_NET_ROUNDTRIP_OK")).listen(18082,"0.0.0.0")'
+          # Use a separate container as the destination. Loopback targets are intentionally
+          # rejected by some Xray routing/final-rule configurations and are not a valid
+          # end-to-end dataplane test for a proxied client.
+          docker run -d --name pompnet-roundtrip --network pompnet-ci-net --network-alias pompnet-roundtrip \
+            --entrypoint node pompnet-quantum-nexus:ci -e 'require("node:http").createServer((_req,res)=>res.end("POMP_NET_ROUNDTRIP_OK")).listen(18082,"0.0.0.0")'
+          docker exec pompnet-ci node -e 'fetch("http://pompnet-roundtrip:18082/").then(r=>r.text()).then(t=>{if(t!=="POMP_NET_ROUNDTRIP_OK")process.exit(1);console.log("Separate round-trip target is reachable.")}).catch(e=>{console.error(e);process.exit(1)})'
           for item in "vless:10808" "vmess:10809" "trojan:10810"; do
             protocol="${item%%:*}"
             docker cp "/tmp/pompnet-$protocol-client.json" pompnet-ci:/tmp/pompnet-$protocol-client.json
@@ -231,7 +241,7 @@ jobs:
           for item in "vless:10808" "vmess:10809" "trojan:10810"; do
             protocol="${item%%:*}"
             port="${item##*:}"
-            if ! curl --fail --silent --show-error --socks5-hostname "127.0.0.1:$port" http://127.0.0.1:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"; then
+            if ! curl --fail --silent --show-error --socks5-hostname "127.0.0.1:$port" http://pompnet-roundtrip:18082/ | grep -q "POMP_NET_ROUNDTRIP_OK"; then
               echo "Xray $protocol WebSocket round-trip failed; client diagnostics follow:"
               docker exec pompnet-ci cat "/tmp/pompnet-$protocol-client.log" || true
               docker logs pompnet-ci || true
@@ -346,7 +356,35 @@ jobs:
           grep -q "^wireguard://" /tmp/pompnet-sub.txt
           grep -q "^socks://" /tmp/pompnet-sub.txt
           grep -q "^http://" /tmp/pompnet-sub.txt
-          echo "Docker image, API/auth, Xray core, TCP/UDP inbound listeners and WireGuard/SOCKS/HTTP subscription links passed."
+          echo "CI stage: verify /data survives container replacement"
+          docker rm -f pompnet-ci >/dev/null
+          docker run -d --name pompnet-ci --network pompnet-ci-net -p 18080:8080 \
+            -p 20011:20011/udp -p 20012:20012/tcp -p 20013:20013/tcp \
+            -p 10808:10808/tcp -p 10809:10809/tcp -p 10810:10810/tcp -p 18443:18443/tcp -p 10811:10811/tcp -p 10812:10812/tcp \
+            -e NODE_ENV=production -e PORT=8080 -e SIDERAIL_DATA_DIR=/data \
+            -e XRAY_VERSION=v26.11.9 -e SING_BOX_VERSION=1.14.4 \
+            -e SINGBOX_TLS_CERT_FILE=/run/pompnet-certs/server.crt \
+            -e SINGBOX_TLS_KEY_FILE=/run/pompnet-certs/server.key -e POMP_TUNNEL_DEBUG=1 \
+            -v /tmp/pompnet-certs:/run/pompnet-certs:ro -v pompnet-ci-data:/data \
+            pompnet-quantum-nexus:ci
+          persisted_ready=0
+          for attempt in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:18080/healthz -o /tmp/pompnet-persisted-health.json; then
+              if node -e 'const x=require("/tmp/pompnet-persisted-health.json"); process.exit(x.ok && x.xray ? 0 : 1)'; then persisted_ready=1; break; fi
+            fi
+            sleep 2
+          done
+          if [ "$persisted_ready" -ne 1 ]; then
+            echo "Replacement container did not become healthy with the persisted /data volume."
+            cat /tmp/pompnet-persisted-health.json 2>/dev/null || true
+            exit 1
+          fi
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/me > /tmp/pompnet-persisted-me.json
+          node -e 'const x=require("/tmp/pompnet-persisted-me.json"); if(!x.admin || x.admin.username!=="ci-owner" || x.admin.role!=="owner") process.exit(1)'
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/users > /tmp/pompnet-persisted-users.json
+          node -e 'const x=require("/tmp/pompnet-persisted-users.json"); if(!(x.users||[]).some(u=>u.email==="sample-user")) process.exit(1)'
+          echo "Persistent SQLite data, owner session secret and user records survived container replacement with /data volume."
+          echo "Docker image, API/auth, Xray core, real client round-trips, subscriptions and /data persistence checks passed."
       - name: Verify Railway-mode subscription filtering and TCP proxy URI
         shell: bash
         run: |
