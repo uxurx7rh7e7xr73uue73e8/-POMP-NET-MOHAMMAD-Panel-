@@ -22,7 +22,7 @@ export default function NodesPage() {
   const nodesQuery = useQuery({ queryKey: ["managed-nodes"], queryFn: api.nodes, refetchInterval: 10000 });
   const inboundQuery = useQuery({ queryKey: ["inbounds"], queryFn: api.inbounds });
   const nodes = nodesQuery.data?.nodes ?? [];
-  const inbounds = (inboundQuery.data ?? []).filter(ib => ["vless","vmess","trojan","wireguard","socks","http"].includes(ib.protocol));
+  const inbounds = (inboundQuery.data ?? []).filter(ib => ["vless","vmess","trojan","wireguard","socks","http","hysteria2","tuic"].includes(ib.protocol));
   React.useEffect(() => { if (inbounds.length && selected.length === 0) { const wg = inbounds.filter(ib => ib.protocol === "wireguard"); setSelected((wg.length ? wg : [inbounds[0]]).map(ib => ib.id)); } }, [inbounds, selected.length]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["managed-nodes"] });
 
@@ -70,13 +70,15 @@ POMP_NODE_TOKEN=${newToken}
 POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
 XRAY_BIN=/usr/local/bin/xray
+SING_BOX_BIN=/usr/local/bin/sing-box
+SING_BOX_VERSION=1.14.4
 POMP_NODE_TLS_CERT_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/fullchain.pem
 POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
   const installCommand = `mkdir -p /tmp/pompnet-node-src && cd /tmp/pompnet-node-src && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/agent.mjs -o agent.mjs && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/pompnet-node.service -o pompnet-node.service && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/install.sh -o install.sh && sudo bash install.sh`;
 
   return <div className="space-y-6" dir="rtl">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><h1 className="font-heading text-3xl">مدیریت نودهای مستقل</h1><p className="mt-1 text-sm text-text/60">اتصال چندنودی امن برای VLESS، VMess، Trojan، WireGuard، SOCKS و HTTP؛ پایش heartbeat</p></div>
+      <div><h1 className="font-heading text-3xl">مدیریت نودهای مستقل</h1><p className="mt-1 text-sm text-text/60">اتصال چندنودی امن برای VLESS، VMess، Trojan، WireGuard، SOCKS، HTTP، Hysteria2 و TUIC؛ پایش heartbeat</p></div>
       <Button variant="neutral" onClick={refresh}><RefreshCw className="h-4 w-4"/> تازه‌سازی</Button>
     </div>
     <div className="grid gap-3 sm:grid-cols-3">
@@ -88,7 +90,7 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
       <CardContent><form className="grid gap-3 md:grid-cols-2" onSubmit={e=>{e.preventDefault();editingNode?update.mutate():create.mutate();}}>
         <label className="space-y-1 text-xs text-text/60">نام نود<input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={64} placeholder="مثلاً POMP-NODE-DE-01" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text"/></label>
         <label className="space-y-1 text-xs text-text/60">دامنه عمومی نود (HTTPS؛ پورت هر لینک از پورت واقعی اینباند گرفته می‌شود)<input value={endpoint} onChange={e=>setEndpoint(e.target.value)} required placeholder="https://node.example.com" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text"/></label>
-        <div className="md:col-span-2 space-y-2"><div className="text-xs text-text/60">اینباندهای قابل اجرا روی این نود · انتخاب حداقل یک مورد الزامی است؛ برای VLESS/VMess/Trojan گواهی TLS نود لازم است</div><div className="flex flex-wrap gap-2">{inbounds.map(ib=><button key={ib.id} type="button" onClick={()=>setSelected(old=>old.includes(ib.id)?old.filter(x=>x!==ib.id):[...old,ib.id])} className={"rounded-lg border px-3 py-2 text-xs "+(selected.includes(ib.id)?"border-violet-400 bg-violet-500/15":"border-border bg-background")}>{ib.tag}</button>)}</div></div>
+        <div className="md:col-span-2 space-y-2"><div className="text-xs text-text/60">اینباندهای قابل اجرا روی این نود · انتخاب حداقل یک مورد الزامی است؛ برای VLESS/VMess/Trojan/Hysteria2/TUIC گواهی TLS نود و برای Hysteria2/TUIC موتور sing-box لازم است</div><div className="flex flex-wrap gap-2">{inbounds.map(ib=><button key={ib.id} type="button" onClick={()=>setSelected(old=>old.includes(ib.id)?old.filter(x=>x!==ib.id):[...old,ib.id])} className={"rounded-lg border px-3 py-2 text-xs "+(selected.includes(ib.id)?"border-violet-400 bg-violet-500/15":"border-border bg-background")}>{ib.tag}</button>)}</div></div>
         <div className="md:col-span-2"><Button type="submit" disabled={create.isPending || update.isPending || name.trim().length<2 || selected.length===0}>{editingNode?<Pencil className="h-4 w-4"/>:<Plus className="h-4 w-4"/>}{create.isPending||update.isPending?"در حال ذخیره…":editingNode?"ذخیره تغییرات نود":"ثبت نود و ساخت توکن امن"}</Button>{editingNode&&<Button type="button" variant="neutral" onClick={()=>{setEditingNode(null);setName("");setEndpoint("");setSelected([]);}}><X className="h-4 w-4"/> لغو ویرایش</Button>}</div>
       </form></CardContent>
     </Card>
@@ -99,7 +101,7 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
       <div className="text-xs text-text/60">مقادیر پایه فایل /etc/pompnet-node.env</div>
       <pre dir="ltr" className="overflow-x-auto rounded-lg border border-border bg-black/30 p-3 text-xs">{installText}</pre>
       <Button variant="neutral" onClick={()=>copy(installText)}><Copy className="h-4 w-4"/> کپی تنظیمات نصب</Button>
-      <div className="text-xs text-text/60">دستور آماده دانلود Agent و نصب سرویس روی Ubuntu/Debian (نیازمند Node.js 22+، Xray و برای VLESS/VMess/Trojan گواهی TLS معتبر روی نود)</div>
+      <div className="text-xs text-text/60">دستور آماده دانلود Agent و نصب سرویس روی Ubuntu/Debian (نیازمند Node.js 22+، Xray، sing-box و برای پروتکل‌های TLS گواهی معتبر روی نود)</div>
       <pre dir="ltr" className="overflow-x-auto rounded-lg border border-border bg-black/30 p-3 text-xs">{installCommand}</pre>
       <Button variant="neutral" onClick={()=>copy(installCommand)}><Terminal className="h-4 w-4"/> کپی دستور نصب نود</Button>
       <Button variant="neutral" onClick={()=>setNewToken("")}>بستن نمایش توکن</Button>
