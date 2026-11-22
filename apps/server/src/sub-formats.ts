@@ -24,7 +24,7 @@ function clashProxy(ctx: Ctx): Record<string, unknown> | null {
 
   if (inbound.protocol === "wireguard") return null;
   if (inbound.protocol === "hysteria2") return { name, type: "hysteria2", server: addr, port: inbound.port, password: user.password, sni: inbound.host || host, alpn: ["h3"], "skip-cert-verify": false };
-  if (inbound.protocol === "tuic") return { name, type: "tuic", server: addr, port: inbound.port, uuid: user.uuid, password: user.password, "congestion-control": "bbr", "udp-relay-mode": "native", tls: true, servername: inbound.host || host, alpn: ["h3"] };
+  if (inbound.protocol === "tuic") return { name, type: "tuic", server: addr, port: inbound.port, uuid: user.uuid, password: user.password, "congestion-control": "bbr", "udp-relay-mode": "native", tls: true, sni: inbound.host || host, alpn: ["h3"] };
   if (inbound.protocol === "socks") {
     return { name, type: "socks5", server: addr, port: inbound.port, username: user.email, password: user.password, udp: true };
   }
