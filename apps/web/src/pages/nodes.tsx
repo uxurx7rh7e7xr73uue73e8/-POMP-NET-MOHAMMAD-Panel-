@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Server, Plus, Copy, RefreshCw, Trash2, Power, ShieldCheck, Activity, Terminal } from "lucide-react";
+import { Server, Plus, Copy, RefreshCw, Trash2, Power, ShieldCheck, Activity, Terminal, Pencil, X } from "lucide-react";
 import { api, type NodeRecord } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export default function NodesPage() {
   const [newToken, setNewToken] = React.useState("");
   const [tokenNode, setTokenNode] = React.useState("");
   const [selected, setSelected] = React.useState<number[]>([]);
+  const [editingNode, setEditingNode] = React.useState<NodeRecord | null>(null);
   const nodesQuery = useQuery({ queryKey: ["managed-nodes"], queryFn: api.nodes, refetchInterval: 10000 });
   const inboundQuery = useQuery({ queryKey: ["inbounds"], queryFn: api.inbounds });
   const nodes = nodesQuery.data?.nodes ?? [];
@@ -37,6 +38,17 @@ export default function NodesPage() {
   const toggle = useMutation({
     mutationFn: (node: NodeRecord) => api.updateNode(node.id, { enabled: !node.enabled }),
     onSuccess: refresh, onError: (e: Error) => toast.push("error", e.message),
+  });
+  const update = useMutation({
+    mutationFn: () => {
+      if (!editingNode) throw new Error("ابتدا نود را انتخاب کن.");
+      return api.updateNode(editingNode.id, { name: name.trim(), endpoint: endpoint.trim(), inboundIds: selected });
+    },
+    onSuccess: () => {
+      toast.push("success", "تنظیمات نود و تخصیص اینباندها به‌روزرسانی شد.");
+      setEditingNode(null); setName(""); setEndpoint(""); setSelected([]); refresh();
+    },
+    onError: (e: Error) => toast.push("error", e.message),
   });
   const rotate = useMutation({
     mutationFn: (node: NodeRecord) => api.rotateNodeToken(node.id),
@@ -72,12 +84,12 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
       <Card><CardContent className="p-4"><div className="text-xs text-text/60">آنلاین</div><div className="mt-1 text-2xl font-heading">{nodes.filter(n=>n.status==="online" && n.enabled).length}</div></CardContent></Card>
       <Card><CardContent className="p-4"><div className="text-xs text-text/60">نیازمند بررسی</div><div className="mt-1 text-2xl font-heading">{nodes.filter(n=>n.status==="error" || n.status==="pending").length}</div></CardContent></Card>
     </div>
-    <Card><CardHeader><CardTitle className="flex items-center gap-2"><Plus className="h-5 w-5"/> ثبت نود جدید</CardTitle></CardHeader>
-      <CardContent><form className="grid gap-3 md:grid-cols-2" onSubmit={e=>{e.preventDefault();create.mutate();}}>
+    <Card><CardHeader><CardTitle className="flex items-center gap-2">{editingNode?<Pencil className="h-5 w-5"/>:<Plus className="h-5 w-5"/>}{editingNode?`ویرایش نود ${editingNode.name}`:"ثبت نود جدید"}</CardTitle></CardHeader>
+      <CardContent><form className="grid gap-3 md:grid-cols-2" onSubmit={e=>{e.preventDefault();editingNode?update.mutate():create.mutate();}}>
         <label className="space-y-1 text-xs text-text/60">نام نود<input value={name} onChange={e=>setName(e.target.value)} required minLength={2} maxLength={64} placeholder="مثلاً POMP-NODE-DE-01" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text"/></label>
         <label className="space-y-1 text-xs text-text/60">آدرس عمومی نود (دامنه HTTPS؛ پورت اختیاری و در صورت درج به‌عنوان پورت عمومی استفاده می‌شود)<input value={endpoint} onChange={e=>setEndpoint(e.target.value)} required placeholder="https://node.example.com" className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text"/></label>
         <div className="md:col-span-2 space-y-2"><div className="text-xs text-text/60">اینباندهای قابل اجرا روی این نود · انتخاب حداقل یک مورد الزامی است؛ برای VLESS/VMess/Trojan گواهی TLS نود لازم است</div><div className="flex flex-wrap gap-2">{inbounds.map(ib=><button key={ib.id} type="button" onClick={()=>setSelected(old=>old.includes(ib.id)?old.filter(x=>x!==ib.id):[...old,ib.id])} className={"rounded-lg border px-3 py-2 text-xs "+(selected.includes(ib.id)?"border-violet-400 bg-violet-500/15":"border-border bg-background")}>{ib.tag}</button>)}</div></div>
-        <div className="md:col-span-2"><Button type="submit" disabled={create.isPending || name.trim().length<2 || selected.length===0}><Plus className="h-4 w-4"/>{create.isPending?"در حال ثبت…":"ثبت نود و ساخت توکن امن"}</Button></div>
+        <div className="md:col-span-2"><Button type="submit" disabled={create.isPending || update.isPending || name.trim().length<2 || selected.length===0}>{editingNode?<Pencil className="h-4 w-4"/>:<Plus className="h-4 w-4"/>}{create.isPending||update.isPending?"در حال ذخیره…":editingNode?"ذخیره تغییرات نود":"ثبت نود و ساخت توکن امن"}</Button>{editingNode&&<Button type="button" variant="neutral" onClick={()=>{setEditingNode(null);setName("");setEndpoint("");setSelected([]);}}><X className="h-4 w-4"/> لغو ویرایش</Button>}</div>
       </form></CardContent>
     </Card>
     {newToken && <Card className="border-emerald-400/40"><CardHeader><CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-emerald-400"/> توکن نود {tokenNode}</CardTitle></CardHeader><CardContent className="space-y-3">
@@ -102,7 +114,7 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
           {node.last_error&&<p className="mt-2 break-words text-xs text-amber-300">{node.last_error}</p>}
           {node.endpoint&&<p className="mt-1 break-all text-xs text-text/40" dir="ltr">{node.endpoint}</p>}
         </div>
-        <div className="flex flex-wrap gap-2"><Button size="sm" variant="neutral" onClick={()=>toggle.mutate(node)} disabled={toggle.isPending}><Power className="h-4 w-4"/>{node.enabled?"غیرفعال‌سازی":"فعال‌سازی"}</Button><Button size="sm" variant="neutral" onClick={()=>rotate.mutate(node)} disabled={rotate.isPending}><ShieldCheck className="h-4 w-4"/>تعویض توکن</Button><Button size="sm" variant="neutral" onClick={()=>{if(confirm("این نود از پنل حذف شود؟"))remove.mutate(node.id);}} disabled={remove.isPending}><Trash2 className="h-4 w-4"/>حذف</Button></div>
+        <div className="flex flex-wrap gap-2"><Button size="sm" variant="neutral" onClick={()=>{setEditingNode(node);setName(node.name);setEndpoint(node.endpoint);setSelected(node.inbound_ids.length?node.inbound_ids:inbounds.map(ib=>ib.id));window.scrollTo({top:0,behavior:"smooth"});}}><Pencil className="h-4 w-4"/>ویرایش نود</Button><Button size="sm" variant="neutral" onClick={()=>toggle.mutate(node)} disabled={toggle.isPending}><Power className="h-4 w-4"/>{node.enabled?"غیرفعال‌سازی":"فعال‌سازی"}</Button><Button size="sm" variant="neutral" onClick={()=>rotate.mutate(node)} disabled={rotate.isPending}><ShieldCheck className="h-4 w-4"/>تعویض توکن</Button><Button size="sm" variant="neutral" onClick={()=>{if(confirm("این نود از پنل حذف شود؟"))remove.mutate(node.id);}} disabled={remove.isPending}><Trash2 className="h-4 w-4"/>حذف</Button></div>
       </CardContent></Card>)}
     </div>
     <Card><CardContent className="flex items-start gap-3 p-4 text-xs leading-6 text-text/60"><Activity className="mt-1 h-5 w-5 shrink-0 text-sky-300"/><div>وضعیت آنلاین فقط از heartbeat احراز هویت‌شده Agent به‌دست می‌آید؛ برای اطمینان از اتصال کاربر، پس از نصب باید پورت‌های انتخاب‌شده را در فایروال نود باز کنی و با یک کلاینت واقعی تست کنی.</div></CardContent></Card>
