@@ -39,7 +39,8 @@ export function getPublicTcpProxyEndpoint(inbound: Inbound): PublicTcpProxyEndpo
 
 export function isPubliclyReachableInbound(inbound: Inbound): boolean {
   if (!isRailwayRuntime()) return true;
-  if (inbound.protocol === "wireguard" || inbound.protocol === "hysteria2" || inbound.protocol === "tuic") return false;
+  if (inbound.protocol === "wireguard") return false;
+  if (inbound.protocol === "hysteria2" || inbound.protocol === "tuic") return Boolean(process.env.SINGBOX_TLS_CERT_FILE && process.env.SINGBOX_TLS_KEY_FILE);
   if (inbound.protocol === "socks" || inbound.protocol === "http") {
     return getPublicTcpProxyEndpoint(inbound) !== null;
   }
