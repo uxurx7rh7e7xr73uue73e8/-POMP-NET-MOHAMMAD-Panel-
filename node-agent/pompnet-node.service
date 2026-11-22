@@ -1,0 +1,20 @@
+[Unit]
+Description=POMP NET MOHAMMAD Remote Node Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+EnvironmentFile=/etc/pompnet-node.env
+ExecStart=/usr/bin/node /opt/pompnet-node/agent.mjs
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/pompnet-node
+
+[Install]
+WantedBy=multi-user.target
