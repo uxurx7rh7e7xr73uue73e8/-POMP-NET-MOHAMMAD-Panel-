@@ -16,6 +16,8 @@ import {
   Languages,
   MessageSquare,
   Server,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
@@ -113,6 +115,7 @@ export function AppLayout() {
   const toast = useToast();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [tehranNow, setTehranNow] = React.useState(() => new Date());
   const location = useLocation();
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -124,6 +127,14 @@ export function AppLayout() {
     },
     [lang, setLang, toast, t],
   );
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setTehranNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const tehranDate = tehranNow.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });
+  const tehranTime = tehranNow.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   React.useEffect(() => {
     setMobileOpen(false);
@@ -212,6 +223,11 @@ export function AppLayout() {
             <div className="hidden items-center gap-2 lg:flex">
               <GitHubButton showStars={false} />
               <VersionBadge />
+            </div>
+            <div className="hidden items-center gap-3 rounded-xl border border-violet-400/25 bg-[#100d20]/80 px-3 py-2 text-xs text-violet-100 shadow-[0_0_22px_rgba(139,53,255,.08)] xl:flex">
+              <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-cyan-300" />{tehranDate}</span>
+              <span className="h-4 w-px bg-violet-300/20" />
+              <span className="flex items-center gap-1.5" dir="ltr"><Clock3 className="h-4 w-4 text-violet-300" />{tehranTime} <span className="text-[10px] text-text/45">UTC+03:30</span></span>
             </div>
             <div className="flex items-center gap-2">
               <a
