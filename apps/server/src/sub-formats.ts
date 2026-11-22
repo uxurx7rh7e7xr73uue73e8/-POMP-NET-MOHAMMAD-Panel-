@@ -23,6 +23,8 @@ function clashProxy(ctx: Ctx): Record<string, unknown> | null {
   const wsOpts = { path: inbound.path, headers: { Host: host } };
 
   if (inbound.protocol === "wireguard") return null;
+  if (inbound.protocol === "hysteria2") return { name, type: "hysteria2", server: addr, port: inbound.port, password: user.password, sni: inbound.host || host, alpn: ["h3"], "skip-cert-verify": false };
+  if (inbound.protocol === "tuic") return { name, type: "tuic", server: addr, port: inbound.port, uuid: user.uuid, password: user.password, "congestion-control": "bbr", "udp-relay-mode": "native", tls: true, servername: inbound.host || host, alpn: ["h3"] };
   if (inbound.protocol === "socks") {
     return { name, type: "socks5", server: addr, port: inbound.port, username: user.email, password: user.password, udp: true };
   }
@@ -91,6 +93,12 @@ function singboxOutbound(ctx: Ctx): Record<string, unknown> | null {
   if (inbound.protocol === "wireguard") return null;
   if (inbound.protocol === "socks") {
     return { type: "socks", tag, server: addr, server_port: inbound.port, version: "5", username: user.email, password: user.password };
+  }
+  if (inbound.protocol === "hysteria2") {
+    return { type: "hysteria2", tag, server: addr, server_port: inbound.port, password: user.password, tls: { enabled: true, server_name: inbound.host || host, alpn: ["h3"] } };
+  }
+  if (inbound.protocol === "tuic") {
+    return { type: "tuic", tag, server: addr, server_port: inbound.port, uuid: user.uuid, password: user.password, congestion_control: "bbr", udp_relay_mode: "native", tls: { enabled: true, server_name: inbound.host || host, alpn: ["h3"] } };
   }
   if (inbound.protocol === "http") {
     return { type: "http", tag, server: addr, server_port: inbound.port, username: user.email, password: user.password };
