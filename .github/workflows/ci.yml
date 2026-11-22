@@ -147,7 +147,7 @@ jobs:
             headers: {
               Connection: "Upgrade", Upgrade: "websocket",
               "Sec-WebSocket-Version": "13",
-              "Sec-WebSocket-Key": Buffer.from("pompnet-ci-websocket-key").toString("base64")
+              "Sec-WebSocket-Key": Buffer.alloc(16, 7).toString("base64")
             }
           });
           req.setTimeout(5000, () => req.destroy(new Error("WebSocket tunnel timed out")));
