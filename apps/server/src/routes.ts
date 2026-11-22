@@ -801,7 +801,7 @@ api.post("/support/tickets/:id/reply", requirePermission("users"), async (req: A
   res.json({ ok: true, telegramDelivered: delivered });
 });
 
-api.patch("/support/tickets/:id", requirePermission("users"), (req, res) => {
+api.patch("/support/tickets/:id", requirePermission("users"), (req: AuthedRequest, res) => {
   const body = z.object({ status: z.enum(["open", "pending", "closed"]), priority: z.enum(["low", "normal", "high"]).optional() }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid ticket state" }); return; }
   const owner = req.admin!.role === "owner";
