@@ -101,7 +101,7 @@ POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem`;
       <div className="text-xs text-text/60">مقادیر پایه فایل /etc/pompnet-node.env</div>
       <pre dir="ltr" className="overflow-x-auto rounded-lg border border-border bg-black/30 p-3 text-xs">{installText}</pre>
       <Button variant="neutral" onClick={()=>copy(installText)}><Copy className="h-4 w-4"/> کپی تنظیمات نصب</Button>
-      <div className="text-xs text-text/60">دستور آماده دانلود Agent و نصب سرویس روی Ubuntu/Debian (نیازمند Node.js 22+، Xray، sing-box و برای پروتکل‌های TLS گواهی معتبر روی نود)</div>
+      <div className="text-xs text-text/60">دستور آماده دانلود Agent و نصب سرویس روی Ubuntu/Debian (نیازمند Node.js 22+ و sing-box؛ Xray فقط برای پروتکل‌های Xray لازم است؛ پروتکل‌های TLS به گواهی معتبر نود نیاز دارند)</div>
       <pre dir="ltr" className="overflow-x-auto rounded-lg border border-border bg-black/30 p-3 text-xs">{installCommand}</pre>
       <Button variant="neutral" onClick={()=>copy(installCommand)}><Terminal className="h-4 w-4"/> کپی دستور نصب نود</Button>
       <Button variant="neutral" onClick={()=>setNewToken("")}>بستن نمایش توکن</Button>
