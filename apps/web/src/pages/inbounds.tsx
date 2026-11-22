@@ -94,9 +94,9 @@ export default function InboundsPage() {
 
   const isReachable = (ib: Inbound) => {
     if (!capabilities) return false;
-    if (!capabilities.railway) return true;
     if (ib.protocol === "wireguard") return capabilities.wireguardPublicUdp;
     if (ib.protocol === "hysteria2" || ib.protocol === "tuic") return capabilities.publicUdpProtocols && capabilities.singBox.tlsConfigured && capabilities.singBox.binaryAvailable && (capabilities.singBoxStatus.inbounds === 0 || capabilities.singBoxStatus.running);
+    if (!capabilities.railway) return true;
     if (ib.protocol === "socks" || ib.protocol === "http") {
       return capabilities.tcpProxy.configured && capabilities.tcpProxy.internalPort === ib.port;
     }
