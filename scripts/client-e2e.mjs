@@ -10,7 +10,7 @@ if (!subscriptionFile || !xrayBinary) {
   console.error("Usage: node scripts/client-e2e.mjs <subscription.txt> <xray-binary>");
   process.exit(2);
 }
-const lines = fs.readFileSync(subscriptionFile, "utf8").trim().split(/\\r?\\n/);
+const lines = fs.readFileSync(subscriptionFile, "utf8").trim().split(/\r?\n/);
 const decodeBase64 = (value) => Buffer.from(value.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
 const vmess = lines.find((line) => line.startsWith("vmess://"));
 const trojan = lines.find((line) => line.startsWith("trojan://"));
