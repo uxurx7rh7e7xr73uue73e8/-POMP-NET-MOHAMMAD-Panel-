@@ -42,9 +42,10 @@ export function buildSingBoxServerConfig() {
     const clients = users.filter((user) => isUserActive(user) && user.inbound_ids.includes(inbound.id));
     const tls = {
       enabled: true,
+      server_name: serverName(inbound),
       certificate_path: config.singBoxTlsCert,
       key_path: config.singBoxTlsKey,
-      alpn: inbound.protocol === "tuic" ? ["h3"] : undefined,
+      alpn: ["h3"],
     };
     if (inbound.protocol === "hysteria2") {
       return {
