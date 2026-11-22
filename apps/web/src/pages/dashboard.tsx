@@ -114,7 +114,7 @@ export default function DashboardPage() {
       <section className="pn-hero">
         <div className="pn-hero-art"><span className="pn-hero-orbit" /><span className="pn-hero-mark">✦</span></div>
         <div className="relative z-10">
-          <div className="mb-2 text-xs font-semibold tracking-[.18em] text-cyan-200">POMP NET MOHAMMAD · QUANTUM NEXUS</div>
+          <div className="mb-2 text-xs font-semibold tracking-[.18em] text-cyan-200">POMP NET MOHAMMAD · SELFVERSE</div>
           <h1 className="text-2xl font-black sm:text-3xl">به پنل پمپ نت محمد خوش آمدید</h1>
           <p className="mt-3 max-w-2xl text-sm text-slate-300">قدرت ساخت، آزادی انتخاب، کنترل در دستان تو</p>
           <div className="mt-4 flex flex-wrap gap-2">
