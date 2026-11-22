@@ -32,7 +32,7 @@ XRAY_VERSION=installed-by-operator
 4. Run `systemctl daemon-reload && systemctl enable --now pompnet-node`.
 5. Check `journalctl -u pompnet-node -f` and the node status in the owner panel.
 
-The agent fetches the node-scoped Xray config over HTTPS, validates it with `xray run -test`, atomically writes it, starts/restarts Xray only when the config hash changes, and sends authenticated health heartbeats. In this release the remote agent deliberately applies only WireGuard UDP inbounds: the controller routes WireGuard subscription endpoints to healthy nodes. Other TCP protocols are not yet distributed to remote nodes. The token is never written to the config file or sent in query parameters.
+The agent fetches the node-scoped Xray config over HTTPS, applies the node-local TLS certificate to assigned VLESS/VMess/Trojan transports, validates it with `xray run -test`, atomically writes it, starts/restarts Xray only when the config hash changes, and sends authenticated health heartbeats. It supports VLESS, VMess, Trojan, WireGuard, SOCKS and HTTP inbounds. For VLESS/VMess/Trojan, configure both `POMP_NODE_TLS_CERT_FILE` and `POMP_NODE_TLS_KEY_FILE` during installation; the certificate must cover the public hostname entered as the node endpoint. Without those files the agent rejects those TCP inbounds and reports an error instead of advertising a broken node. Hysteria2/TUIC remain sing-box protocols and are not included in this Xray agent. The token is never written to the config file or sent in query parameters.
 
 ## Security and limitations
 
