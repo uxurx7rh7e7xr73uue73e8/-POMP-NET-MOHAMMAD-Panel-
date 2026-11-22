@@ -14,6 +14,7 @@ import {
   Ban,
   Bot,
   Languages,
+  MessageSquareText,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
@@ -36,6 +37,7 @@ import type { Permission } from "@/lib/types";
 const nav: {
   to: string;
   labelKey: "dashboard" | "users" | "inbounds" | "routing" | "activityLog" | "telegramBot" | "settings";
+  customLabel?: string;
   icon: typeof LayoutDashboard;
   end: boolean;
   perm: Permission;
@@ -43,6 +45,7 @@ const nav: {
 }[] = [
   { to: "/", labelKey: "dashboard", icon: LayoutDashboard, end: true, perm: "dashboard" },
   { to: "/users", labelKey: "users", icon: Users, end: false, perm: "users" },
+  { to: "/support", labelKey: "users", customLabel: "پشتیبانی و تیکت‌ها", icon: MessageSquareText, end: false, perm: "users" },
   { to: "/inbounds", labelKey: "inbounds", icon: Router, end: false, perm: "inbounds" },
   { to: "/routing", labelKey: "routing", icon: Ban, end: false, perm: "routing" },
   { to: "/activity", labelKey: "activityLog", icon: ScrollText, end: false, perm: "activity" },
@@ -95,7 +98,7 @@ function NavItems({
           }
         >
           <item.icon className="h-5 w-5 transition-transform group-hover:scale-110" />
-          {t(item.labelKey as never)}
+          {item.customLabel || t(item.labelKey as never)}
         </NavLink>
         ))}
     </nav>
