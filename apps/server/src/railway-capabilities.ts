@@ -39,7 +39,7 @@ export function getPublicTcpProxyEndpoint(inbound: Inbound): PublicTcpProxyEndpo
 
 export function isPubliclyReachableInbound(inbound: Inbound): boolean {
   if (!isRailwayRuntime()) return true;
-  if (inbound.protocol === "wireguard") return false;
+  if (inbound.protocol === "wireguard" || inbound.protocol === "hysteria2" || inbound.protocol === "tuic") return false;
   if (inbound.protocol === "socks" || inbound.protocol === "http") {
     return getPublicTcpProxyEndpoint(inbound) !== null;
   }
@@ -63,5 +63,6 @@ export function getRuntimeCapabilities() {
       note: "A Railway TCP Proxy exposes one internal TCP port per service instance.",
     },
     wireguardPublicUdp: !railway,
+    publicUdpProtocols: !railway,
   };
 }
