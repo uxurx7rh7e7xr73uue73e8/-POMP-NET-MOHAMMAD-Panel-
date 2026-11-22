@@ -83,6 +83,8 @@ function commonQuery(ctx: LinkContext): Record<string, string> {
   };
   q.type = inbound.transport === "xhttp" ? "xhttp" : inbound.transport;
   q.path = inbound.path;
+  // Keep the client-side XHTTP mode identical to xray-config.ts.
+  if (inbound.transport === "xhttp") q.mode = "auto";
   if (inbound.transport === "ws" || inbound.transport === "httpupgrade") {
     q.alpn = "http/1.1";
     q.headerType = "none";
@@ -165,6 +167,7 @@ function vmessLink(ctx: LinkContext): string {
     aid: "0",
     scy: "auto",
     net: isXhttp ? "xhttp" : inbound.transport,
+    ...(isXhttp ? { mode: "auto" } : {}),
     type: "none",
     host,
     path: inbound.path,
