@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Server, Plus, Copy, RefreshCw, Trash2, Power, ShieldCheck, Activity, Terminal } from "lucide-react";
+import { Server, Plus, Copy, RefreshCw, Trash2, Power, ShieldCheck, Activity } from "lucide-react";
 import { api, type NodeRecord } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
