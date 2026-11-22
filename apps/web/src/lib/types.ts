@@ -1,4 +1,4 @@
-export type Protocol = "vless" | "vmess" | "trojan" | "wireguard" | "socks" | "http" | "hysteria2" | "tuic";
+export type Protocol = "vless" | "vmess" | "trojan";
 export type Transport = "ws" | "xhttp" | "httpupgrade" | "udp" | "tcp";
 export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
 
