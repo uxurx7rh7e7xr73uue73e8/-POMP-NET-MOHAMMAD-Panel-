@@ -27,15 +27,15 @@ Keep the private key outside the Git repository. Do not paste certificate privat
 ## Create the inbounds
 
 1. Deploy/restart the container with the certificate paths configured.
-2. Open **Inbounds** and select Hysteria2 or TUIC. Those options stay disabled until the sing-box binary and certificate files are detected.
+2. Open **Inbounds** and select Hysteria2 or TUIC. On a self-hosted controller, those options require the local sing-box binary and certificate files. On Railway, provide the TLS/SNI hostname; public UDP will be served only after assigning the inbound to an authenticated remote node.
 3. Enter the TLS/SNI hostname covered by the certificate.
-4. Create the inbound. The panel stores it in SQLite, builds a native sing-box config, runs `sing-box check`, and starts/restarts the sing-box process.
-5. Open the inbound's UDP port on the host and provider firewalls.
-6. Confirm `/healthz` reports `singBox.running: true` and `singBox.inbounds` matches the configured UDP inbound count.
+4. Create the inbound. A self-hosted controller builds and validates a local sing-box config. For Railway, open **Node Manager**, register a UDP-capable Linux node, assign the Hysteria2/TUIC inbounds, and install the node agent; it installs sing-box v1.14.4, applies the node-local certificate/key, validates the config and supervises the process.
+5. Open the inbound's UDP port on the actual serving host (controller or remote node) and provider firewalls.
+6. For local self-hosted mode, confirm `/healthz` reports `singBox.running: true`. For remote-node mode, confirm the assigned node reports Online in **Node Manager** and has no agent error.
 7. Import a generated subscription into a client that supports Hysteria2/TUIC and test from an external network.
 
 ## Platform limits
 
-- Railway's public edge does not provide UDP ingress. The panel rejects Hysteria2/TUIC creation in Railway runtime and does not publish these subscription links there.
-- The remote node agent currently manages WireGuard UDP inbounds only. It does not yet install or run sing-box on remote nodes.
+- Railway's public edge does not provide UDP ingress. The panel can store Hysteria2/TUIC inbounds on Railway and route their subscription links to a healthy assigned UDP-capable remote node; it never claims that Railway itself serves UDP.
+- The remote node agent supports Xray protocols and installs/supervises sing-box v1.14.4 for Hysteria2/TUIC. The node must have public UDP reachability and a certificate SAN covering the configured SNI hostnames.
 - A green Docker CI check validates the sing-box config, local UDP listeners and URI generation. It does not prove that a public firewall, DNS record, certificate chain or phone connection is correct.
