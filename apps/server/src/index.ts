@@ -17,7 +17,7 @@ import cookieParser from "cookie-parser";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
 import { seedInbounds, expireInbounds } from "./inbounds.js";
-import { seedDefaultClient } from "./users.js";
+import { seedDefaultClient, getAdminQuotaState } from "./users.js";
 import { seedDefaultRouting } from "./routing.js";
 import { api } from "./routes.js";
 import { sub, setSubStaticRoot } from "./sub.js";
@@ -110,6 +110,20 @@ setInterval(() => {
     enforceIpLimits();
   } catch {
     /* noop */
+  }
+}, 20_000);
+
+let lastAdminQuotaState = getAdminQuotaState();
+setInterval(() => {
+  try {
+    const nextState = getAdminQuotaState();
+    if (nextState !== lastAdminQuotaState) {
+      lastAdminQuotaState = nextState;
+      console.log("[POMP NET] Delegated administrator quota state changed; reloading Xray.");
+      restartXray();
+    }
+  } catch (error) {
+    console.error("[POMP NET admin quota enforcement]", error);
   }
 }, 20_000);
 
