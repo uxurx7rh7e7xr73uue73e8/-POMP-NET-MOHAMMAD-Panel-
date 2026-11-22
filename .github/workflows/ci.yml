@@ -171,6 +171,11 @@ jobs:
           curl -fsS "http://127.0.0.1:18080/sub/$token?raw=1" | base64 -d > /tmp/pompnet-udp-sub.txt
           grep -q "^hysteria2://" /tmp/pompnet-udp-sub.txt
           grep -q "^tuic://" /tmp/pompnet-udp-sub.txt
+          curl -fsS "http://127.0.0.1:18080/sub/$token/clash" > /tmp/pompnet-udp-clash.yaml
+          grep -q 'type: "hysteria2"' /tmp/pompnet-udp-clash.yaml
+          grep -q 'type: "tuic"' /tmp/pompnet-udp-clash.yaml
+          curl -fsS "http://127.0.0.1:18080/sub/$token/singbox" > /tmp/pompnet-udp-singbox.json
+          node -e 'const x=require("/tmp/pompnet-udp-singbox.json"); const types=(x.outbounds||[]).map(o=>o.type); if(!types.includes("hysteria2") || !types.includes("tuic")) process.exit(1)'
           docker exec pompnet-ci node -e '
             const ports=process.argv.slice(1).map(Number);
             const fs=require("node:fs");
