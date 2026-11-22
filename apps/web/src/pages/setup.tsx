@@ -65,9 +65,9 @@ export default function SetupPage() {
 
   return (
     <AuthShell heading={t("firstSetup")} sub={t("createOwner")} highlights={highlights}>
-      <form onSubmit={submit} className="space-y-4" noValidate>
+      <form onSubmit={submit} className="pn-login-form space-y-5" noValidate>
         <div className="space-y-2">
-          <Label htmlFor="username">{t("ownerUsername")}</Label>
+          <Label htmlFor="username" className="text-sm font-semibold text-white/80">{t("ownerUsername")}</Label>
           <div className="relative">
             <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text/40" />
             <Input
@@ -75,12 +75,12 @@ export default function SetupPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
-              className="pl-9"
+              className="pn-auth-input h-12 rounded-xl border-white/10 bg-white/[.05] pl-10 text-white placeholder:text-white/30 focus-visible:ring-[#8b35ff]"
             />
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password">{t("password")}</Label>
+          <Label htmlFor="password" className="text-sm font-semibold text-white/80">{t("password")}</Label>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text/40" />
             <Input
@@ -90,7 +90,7 @@ export default function SetupPage() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               placeholder={t("atLeast6")}
-              className="px-9"
+              className="pn-auth-input h-12 rounded-xl border-white/10 bg-white/[.05] px-10 text-white placeholder:text-white/30 focus-visible:ring-[#8b35ff]"
             />
             <button
               type="button"
@@ -104,7 +104,7 @@ export default function SetupPage() {
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="confirm">{t("confirmPassword")}</Label>
+          <Label htmlFor="confirm" className="text-sm font-semibold text-white/80">{t("confirmPassword")}</Label>
           <div className="relative">
             <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text/40" />
             <Input
@@ -117,7 +117,7 @@ export default function SetupPage() {
             />
           </div>
         </div>
-        <Button type="submit" className="w-full" disabled={loading}>
+        <Button type="submit" className="pn-login-submit h-12 w-full rounded-xl border-0 bg-gradient-to-l from-[#168cff] via-[#713cff] to-[#a43cff] font-bold text-white shadow-[0_10px_30px_rgba(113,60,255,.25)] transition hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(113,60,255,.38)]" disabled={loading}>
           {loading ? t("creating") : t("createAccount")}
           <ArrowRight className="h-4 w-4" />
         </Button>
