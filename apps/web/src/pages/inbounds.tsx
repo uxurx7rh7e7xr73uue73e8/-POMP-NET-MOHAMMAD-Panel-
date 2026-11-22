@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Router, Waypoints, Network, Lock, Plus, Trash2, Gamepad2, CalendarClock } from "lucide-react";
+import { Router, Waypoints, Network, Lock, Plus, Trash2, CalendarClock } from "lucide-react";
 import { api } from "@/lib/api";
 import { useToast } from "@/components/ui/toast";
 import { useI18n } from "@/lib/i18n";
@@ -78,14 +78,6 @@ export default function InboundsPage() {
     onError: (e: Error) => toast.push("error", e.message),
   });
 
-  const createGamePreset = () => {
-    const existing = inbounds.find((ib) => ib.tag === "POMP-GAME-ROUTE");
-    if (existing) {
-      toast.push("success", `پروفایل Game Route آماده است · پورت ${existing.port}`);
-      return;
-    }
-    create.mutate({ tag: "POMP-GAME-ROUTE", protocol: "vless", transport: "xhttp", expireDays: 0 });
-  };
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -137,10 +129,6 @@ export default function InboundsPage() {
               <h2 className="font-heading text-lg">ساخت Inbound جدید</h2>
               <p className="text-xs text-text/60">این فرم رکورد واقعی می‌سازد و تنظیمات آن وارد کانفیگ Xray می‌شود.</p>
             </div>
-            <button type="button" onClick={createGamePreset} disabled={create.isPending}
-              className="inline-flex items-center gap-2 rounded-xl border border-purple-400/40 bg-purple-500/10 px-3 py-2 text-xs text-purple-200 disabled:opacity-50">
-              <Gamepad2 className="h-4 w-4" /> ساخت Game Route
-            </button>
           </div>
           <form onSubmit={submit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <label className="space-y-1 text-xs text-text/70">
@@ -180,7 +168,7 @@ export default function InboundsPage() {
             </div>
           </form>
           <p className="text-[11px] leading-6 text-text/50">
-            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. روی Railway، WireGuard عمومی قابل‌استفاده نیست. SOCKS5 یا HTTP فقط وقتی لینک عمومی می‌گیرد که همان پورت داخلی به TCP Proxy متصل و سه متغیر RAILWAY_TCP_PROXY_INTERNAL_PORT، PUBLIC_TCP_PROXY_HOST و PUBLIC_TCP_PROXY_PORT تنظیم شده باشند. پروفایل Game Route پینگ پایین را تضمین نمی‌کند.
+            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. روی Railway، WireGuard عمومی قابل‌استفاده نیست. SOCKS5 یا HTTP فقط وقتی لینک عمومی می‌گیرد که همان پورت داخلی به TCP Proxy متصل و سه متغیر RAILWAY_TCP_PROXY_INTERNAL_PORT، PUBLIC_TCP_PROXY_HOST و PUBLIC_TCP_PROXY_PORT تنظیم شده باشند. 
           </p>
         </CardContent>
       </Card>
