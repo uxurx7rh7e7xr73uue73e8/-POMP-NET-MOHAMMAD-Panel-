@@ -60,7 +60,7 @@ function FullscreenLoader() {
       </div>
       <div className="text-center">
         <div className="font-heading text-xl tracking-tight">POMP NET MOHAMMAD</div>
-        <div className="text-[10px] uppercase tracking-[.24em] text-main">QUANTUM NEXUS</div>
+        <div className="text-[10px] uppercase tracking-[.24em] text-main">SELFVERSE</div>
         <div className="mt-1 flex items-center justify-center gap-2 text-sm text-text/60">
           <Spinner className="h-4 w-4" />
           Loading…
