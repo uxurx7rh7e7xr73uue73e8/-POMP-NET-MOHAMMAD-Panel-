@@ -110,7 +110,11 @@ async function applyConfig() {
     currentHash = hash;
     console.log(`[POMP NODE] Applied controller configuration ${hash.slice(0, 12)}`);
   } catch (error) {
-    if (previous) fs.writeFileSync(configFile, previous, { mode: 0o600 });
+    if (previous) {
+      fs.writeFileSync(configFile, previous, { mode: 0o600 });
+      try { await startXray(); }
+      catch (rollbackError) { console.error("[POMP NODE] Previous Xray config could not be restarted:", rollbackError); }
+    }
     throw error;
   }
   return hash;
