@@ -351,3 +351,67 @@ main [role="dialog"] {
   .pn-hero { min-height:155px; padding:17px; }
   aside { padding:14px !important; }
 }
+
+
+/* Reference-matched POMP NET MOHAMMAD control room */
+.pn-sidebar-brand { padding: 8px 4px 20px; }
+.pn-sidebar-crown {
+  color:#b98cff;
+  border:1px solid rgba(153,91,255,.55);
+  background:radial-gradient(circle,rgba(139,53,255,.24),rgba(8,7,20,.96) 70%);
+  box-shadow:0 0 16px rgba(139,53,255,.42),inset 0 0 20px rgba(22,140,255,.13);
+}
+aside nav a { justify-content:flex-start; font-size:13px!important; }
+aside nav a svg { color:#a96bff; filter:drop-shadow(0 0 5px rgba(139,53,255,.45)); }
+aside nav a[aria-current="page"] svg { color:#fff; }
+.pn-dashboard { gap:16px!important; }
+.pn-hero {
+  min-height:190px;
+  border-radius:18px;
+  padding:clamp(18px,2.5vw,30px);
+  background:
+    radial-gradient(ellipse at 12% 50%,rgba(126,52,255,.38),transparent 34%),
+    radial-gradient(ellipse at 88% 45%,rgba(22,140,255,.25),transparent 38%),
+    linear-gradient(110deg,#090515 0%,#08091c 48%,#100820 100%);
+}
+.pn-hero-art { width:31%; opacity:.8; }
+.pn-hero-orbit { width:190px;height:190px;border-width:2px; }
+.pn-hero-mark { font-size:104px; }
+.pn-hero-brand { font-size:clamp(19px,2.8vw,34px); }
+.pn-metric { min-height:116px!important; border-radius:17px!important; }
+.pn-metric-icon { width:56px;height:56px;border-radius:50%; }
+.pn-metric-pink .pn-metric-icon { background:rgba(139,53,255,.15);color:#bd78ff;box-shadow:0 0 22px rgba(139,53,255,.2); }
+.pn-panel-card { border-radius:18px!important; }
+.pn-traffic-chart { height:205px; }
+.pn-user-table tbody tr:hover { background:rgba(22,140,255,.06); }
+.pn-status-on { background:rgba(16,185,129,.16);box-shadow:0 0 12px rgba(16,185,129,.10); }
+.pn-auth { background:
+ radial-gradient(ellipse at 12% 18%,rgba(139,53,255,.23),transparent 34rem),
+ radial-gradient(ellipse at 90% 82%,rgba(22,140,255,.16),transparent 32rem),
+ #06050d!important; }
+.pn-auth-frame { border:1px solid rgba(139,53,255,.36)!important;border-radius:24px!important;box-shadow:0 24px 90px rgba(0,0,0,.55),0 0 45px rgba(139,53,255,.12)!important; }
+.pn-auth-hero { background:
+ radial-gradient(ellipse at 25% 30%,rgba(139,53,255,.35),transparent 48%),
+ radial-gradient(ellipse at 85% 75%,rgba(22,140,255,.22),transparent 45%),
+ linear-gradient(145deg,#10091e,#080817 70%,#0b1022)!important; }
+.pn-auth-form { background:linear-gradient(145deg,rgba(17,13,33,.99),rgba(7,8,19,.99))!important; }
+.pn-login-form input { min-height:48px; }
+.pn-login-submit { background:linear-gradient(100deg,#6720e8,#922eff 55%,#147fe8)!important; }
+.pn-sub-page { background:
+ radial-gradient(ellipse at 10% 0%,rgba(139,53,255,.2),transparent 34rem),
+ radial-gradient(ellipse at 100% 25%,rgba(22,140,255,.14),transparent 30rem),
+ #06050d!important; }
+.pn-sub-page > .relative.mx-auto { max-width:900px!important; }
+.pn-sub-header { border-color:rgba(139,53,255,.42)!important;box-shadow:0 0 34px rgba(139,53,255,.11),0 18px 50px rgba(0,0,0,.32)!important; }
+.pn-sub-overview { border-color:rgba(22,140,255,.28)!important; }
+.pn-sub-configs h2 { color:#d9c6ff; }
+@media(max-width:1023px) {
+ .pn-sidebar-brand { padding-bottom:14px; }
+}
+@media(max-width:640px) {
+ .pn-hero-brand { display:none; }
+ .pn-hero-art { width:48%;opacity:.35; }
+ .pn-hero { min-height:160px; }
+ .pn-auth-frame { margin:12px!important; }
+ .pn-sub-page > .relative.mx-auto { max-width:100%!important; }
+}
