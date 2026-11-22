@@ -26,7 +26,7 @@ export default function SupportPage() {
   const [message, setMessage] = React.useState("");
   const [filter, setFilter] = React.useState<"all" | Ticket["status"]>("all");
   const ticketsQuery = useQuery({ queryKey: ["support-tickets"], queryFn: api.supportTickets, refetchInterval: 12000 });
-  const tickets = ticketsQuery.data?.tickets ?? [];
+  const tickets = (ticketsQuery.data?.tickets ?? []) as Ticket[];
   React.useEffect(() => {
     if (selected === null && tickets.length) setSelected(tickets[0].id);
     if (selected !== null && !tickets.some(t => t.id === selected)) setSelected(tickets[0]?.id ?? null);
@@ -45,7 +45,7 @@ export default function SupportPage() {
     mutationFn: () => api.replySupportTicket(selected!, message.trim()),
     onSuccess: result => {
       setMessage("");
-      toast.push(result.telegramDelivered ? "success" : "warning", result.telegramDelivered ? "پاسخ ثبت و در تلگرام ارسال شد." : "پاسخ ثبت شد؛ ارسال تلگرام تأیید نشد.");
+      toast.push(result.telegramDelivered ? "success" : "info", result.telegramDelivered ? "پاسخ ثبت و در تلگرام ارسال شد." : "پاسخ ثبت شد؛ ارسال تلگرام تأیید نشد.");
       refresh();
     },
     onError: (e: Error) => toast.push("error", e.message),
