@@ -53,13 +53,19 @@ async function request(route, options = {}) {
 }
 
 function stopXray() {
-  if (!child) return;
+  if (!child) return Promise.resolve();
   const old = child;
   child = null;
-  old.kill("SIGTERM");
-  setTimeout(() => {
-    if (old.exitCode === null) old.kill("SIGKILL");
-  }, 5000).unref();
+  return new Promise(resolve => {
+    if (old.exitCode !== null) return resolve();
+    const timer = setTimeout(() => {
+      if (old.exitCode === null) old.kill("SIGKILL");
+      resolve();
+    }, 5000);
+    timer.unref();
+    old.once("exit", () => { clearTimeout(timer); resolve(); });
+    old.kill("SIGTERM");
+  });
 }
 
 function startXray() {
@@ -85,7 +91,7 @@ async function applyConfig() {
   const previous = fs.existsSync(configFile) ? fs.readFileSync(configFile) : null;
   fs.renameSync(temp, configFile);
   try {
-    stopXray();
+    await stopXray();
     startXray();
     currentHash = hash;
     console.log(`[POMP NODE] Applied controller configuration ${hash.slice(0, 12)}`);
@@ -127,7 +133,7 @@ async function cycle() {
 
 async function shutdown() {
   stopping = true;
-  stopXray();
+  await stopXray();
   process.exit(0);
 }
 process.on("SIGINT", shutdown);
