@@ -5,6 +5,7 @@ export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
 export interface RuntimeCapabilities {
   platform: "railway" | "self-hosted";
   railway: boolean;
+  railwayReplica: { id: string | null; region: string | null; note: string };
   tcpProxy: {
     configured: boolean;
     internalPort: number | null;
