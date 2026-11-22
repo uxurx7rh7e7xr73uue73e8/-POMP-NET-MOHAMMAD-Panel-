@@ -481,7 +481,7 @@ api.get("/nodes", requirePermission("settings"), (_req, res) => {
 api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
   const body = z.object({
     name: z.string().trim().min(2).max(64),
-    endpoint: z.string().trim().url().max(255).optional().default(""),
+    endpoint: z.string().trim().url().max(255).optional(),
     inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
@@ -496,7 +496,7 @@ api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
   const token = randomBytes(48).toString("base64url");
   const now = Date.now();
   const info = db.prepare("INSERT INTO managed_nodes (name, endpoint, token_hash, inbound_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
-    .run(body.data.name, body.data.endpoint, nodeTokenHash(token), JSON.stringify(body.data.inboundIds), now, now);
+    .run(body.data.name, body.data.endpoint || "", nodeTokenHash(token), JSON.stringify(body.data.inboundIds), now, now);
   logActivity(req.admin!.username, "node_create", body.data.name);
   res.status(201).json({ id: Number(info.lastInsertRowid), name: body.data.name, endpoint: body.data.endpoint, token, installCommand: "Use the POMP NET node-agent files and set POMP_CONTROLLER_URL and POMP_NODE_TOKEN. The token is shown only once." });
 });
