@@ -88,6 +88,15 @@ function stop(): void {
   setTimeout(() => { if (old.exitCode === null) old.kill("SIGKILL"); }, 5000).unref();
 }
 
+export function singBoxCapabilities() {
+  const version = spawnSync(config.singBoxBin, ["version"], { encoding: "utf8", timeout: 5000 });
+  return {
+    tlsConfigured: !!config.singBoxTlsCert && !!config.singBoxTlsKey && fs.existsSync(config.singBoxTlsCert) && fs.existsSync(config.singBoxTlsKey),
+    binaryAvailable: !version.error && version.status === 0,
+    version: process.env.SING_BOX_VERSION || (version.status === 0 ? (version.stdout || version.stderr || "").trim().split("\\n")[0] : "unavailable"),
+  };
+}
+
 export function singBoxStatus() {
   return {
     running: !!proc && proc.exitCode === null && !proc.killed,
