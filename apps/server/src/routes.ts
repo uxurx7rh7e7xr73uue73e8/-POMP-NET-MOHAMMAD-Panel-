@@ -631,17 +631,22 @@ api.get("/users/:id/renewals", requirePermission("users"), (req: AuthedRequest, 
   res.json(db.prepare("SELECT id, days, previous_expire_at, new_expire_at, actor, note, created_at FROM renewal_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 100").all(id));
 });
 
-api.get("/support/tickets", requirePermission("users"), (_req, res) => {
+api.get("/support/tickets", requirePermission("users"), (req: AuthedRequest, res) => {
+  const owner = req.admin!.role === "owner";
   const tickets = db.prepare(`SELECT t.*, u.email AS user_email,
     (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id=t.id) AS message_count
     FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id
-    ORDER BY CASE t.status WHEN 'open' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END, t.updated_at DESC LIMIT 300`).all();
+    WHERE (? = 1 OR u.created_by = ?)
+    ORDER BY t.updated_at DESC LIMIT 300`).all(owner ? 1 : 0, req.admin!.id);
   res.json({ tickets });
 });
 
-api.get("/support/tickets/:id", requirePermission("users"), (req, res) => {
+api.get("/support/tickets/:id", requirePermission("users"), (req: AuthedRequest, res) => {
   const id = Number(req.params.id);
-  const ticket = db.prepare("SELECT t.*, u.email AS user_email FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=?").get(id);
+  const owner = req.admin!.role === "owner";
+  const ticket = db.prepare(`SELECT t.*, u.email AS user_email FROM support_tickets t
+    LEFT JOIN users u ON u.id=t.user_id WHERE t.id=? AND (? = 1 OR u.created_by = ?)`)
+    .get(id, owner ? 1 : 0, req.admin!.id);
   if (!ticket) { res.status(404).json({ error: "not found" }); return; }
   const messages = db.prepare("SELECT * FROM support_messages WHERE ticket_id=? ORDER BY created_at ASC").all(id);
   res.json({ ticket, messages });
