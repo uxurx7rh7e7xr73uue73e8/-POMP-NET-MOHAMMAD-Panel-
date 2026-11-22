@@ -123,6 +123,7 @@ function buildRoutingRules(inbounds: Inbound[]) {
 export function buildXrayConfig(options: { remoteNode?: boolean; inboundIds?: number[] } = {}) {
   const inbounds = listEnabledInbounds()
     .filter((inbound) => inbound.protocol !== "hysteria2" && inbound.protocol !== "tuic")
+    .filter((inbound) => !options.remoteNode || inbound.protocol === "wireguard")
     .filter((inbound) => options.inboundIds === undefined || options.inboundIds.includes(inbound.id))
     .filter((inbound) => options.remoteNode || isPubliclyReachableInbound(inbound));
   const users = listUsers();
