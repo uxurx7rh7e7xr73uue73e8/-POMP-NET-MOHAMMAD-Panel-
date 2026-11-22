@@ -12,6 +12,7 @@ import { Router } from "express";
 import { createHash, randomBytes } from "node:crypto";
 import { getRuntimeCapabilities } from "./railway-capabilities.js";
 import { buildXrayConfig } from "./xray-config.js";
+import { singBoxCapabilities, singBoxSetupError, singBoxStatus } from "./singbox.js";
 import { z } from "zod";
 import {
   isSetupDone,
@@ -97,7 +98,7 @@ function setAuthCookie(res: import("express").Response, token: string): void {
 }
 
 api.get("/capabilities", (_req, res) => {
-  res.json(getRuntimeCapabilities());
+  res.json({ ...getRuntimeCapabilities(), singBox: singBoxCapabilities(), singBoxStatus: singBoxStatus() });
 });
 
 api.get("/status", (_req, res) => {
@@ -216,13 +217,19 @@ api.get("/inbounds", requirePermission("inbounds"), (_req, res) => {
 api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) => {
   const body = z.object({
     tag: z.string().trim().min(2).max(48),
-    protocol: z.enum(["vless", "vmess", "trojan", "wireguard", "socks", "http"]),
+    protocol: z.enum(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]),
     transport: z.enum(["ws", "xhttp", "httpupgrade", "udp", "tcp"]).optional().default("xhttp"),
     expireDays: z.number().int().min(0).max(3650).optional(),
+    serverName: z.string().trim().max(253).optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
+  if (body.data.protocol === "hysteria2" || body.data.protocol === "tuic") {
+    const setupError = singBoxSetupError(body.data.serverName);
+    if (setupError) { res.status(400).json({ error: setupError }); return; }
+    body.data.transport = "udp";
+  }
   try {
-    const inbound = createInbound(body.data);
+    const inbound = createInbound({ ...body.data, host: body.data.serverName });
     logActivity(req.admin!.username, "inbound_create", `${inbound.tag} : ${inbound.port}`);
     restartXray();
     res.json(inbound);
