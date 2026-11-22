@@ -68,7 +68,7 @@ function stopXray() {
   });
 }
 
-function startXray() {
+async function startXray() {
   if (!fs.existsSync(xrayBin)) throw new Error(`Xray binary not found at ${xrayBin}; install Xray-core and set XRAY_BIN.`);
   const test = spawnSync(xrayBin, ["run", "-test", "-config", configFile], { encoding: "utf8", timeout: 20000 });
   if (test.status !== 0) throw new Error(`Xray config validation failed: ${(test.stderr || test.stdout || "unknown error").slice(0, 700)}`);
@@ -77,6 +77,20 @@ function startXray() {
   proc.on("exit", (code, signal) => {
     if (child === proc) child = null;
     if (!stopping) console.error(`[POMP NODE] Xray exited (code=${code}, signal=${signal}). Next poll will retry.`);
+  });
+  await new Promise((resolve, reject) => {
+    let settled = false;
+    proc.once("error", error => { if (!settled) { settled = true; reject(error); } });
+    proc.once("exit", (code, signal) => { if (!settled) { settled = true; reject(new Error(`Xray exited during startup (code=${code}, signal=${signal})`)); } });
+    proc.once("spawn", () => {
+      setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          if (proc.exitCode !== null) reject(new Error(`Xray exited during startup (code=${proc.exitCode})`));
+          else resolve();
+        }
+      }, 500);
+    });
   });
 }
 
@@ -92,7 +106,7 @@ async function applyConfig() {
   fs.renameSync(temp, configFile);
   try {
     await stopXray();
-    startXray();
+    await startXray();
     currentHash = hash;
     console.log(`[POMP NODE] Applied controller configuration ${hash.slice(0, 12)}`);
   } catch (error) {
@@ -103,6 +117,7 @@ async function applyConfig() {
 }
 
 async function heartbeat(error = "") {
+  const runtimeError = error || (!child || child.exitCode !== null ? "Xray process is not running" : "");
   return request("/api/node-agent/heartbeat", {
     method: "POST",
     body: JSON.stringify({
@@ -111,7 +126,7 @@ async function heartbeat(error = "") {
       platform: os.platform(),
       arch: os.arch(),
       configHash: currentHash,
-      error: error ? String(error).slice(0, 900) : "",
+      error: runtimeError ? String(runtimeError).slice(0, 900) : "",
     }),
   });
 }
