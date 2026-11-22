@@ -129,7 +129,7 @@ jobs:
           node -e 'const x=require("/tmp/pompnet-node-heartbeat.json"); if (!x.ok) process.exit(1)'
           curl -fsS -H "Authorization: Bearer $node_token" \
             http://127.0.0.1:18080/api/node-agent/config > /tmp/pompnet-node-config.json
-          node -e 'const x=require("/tmp/pompnet-node-config.json"); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !x.config.inbounds.some(i=>i.tag!=="api" && i.listen==="0.0.0.0")) process.exit(1)'
+          node -e 'const x=require("/tmp/pompnet-node-config.json"); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !x.config.inbounds.some(i=>i.protocol==="wireguard" && i.listen==="0.0.0.0") || x.config.inbounds.some(i=>i.tag!=="api" && i.protocol!=="wireguard")) process.exit(1)'
           cat > /tmp/pompnet-fake-xray <<'SH'
           #!/usr/bin/env node
           if (process.argv[2] === "run" && process.argv[3] === "-test") process.exit(0);
@@ -267,7 +267,7 @@ jobs:
             -d '{"agentVersion":"ci-test","xrayVersion":"ci-xray","platform":"linux","arch":"x64","configHash":"ci-config"}' \
             http://127.0.0.1:18081/api/node-agent/heartbeat >/dev/null
           curl -fsS -H "Authorization: Bearer $node_token" http://127.0.0.1:18081/api/node-agent/config > /tmp/pompnet-railway-node-config.json
-          node -e 'const x=require("/tmp/pompnet-railway-node-config.json"); if (!x.config.inbounds.some(i=>i.protocol==="wireguard" && i.listen==="0.0.0.0")) process.exit(1)'
+          node -e 'const x=require("/tmp/pompnet-railway-node-config.json"); if (!x.config.inbounds.some(i=>i.protocol==="wireguard" && i.listen==="0.0.0.0") || x.config.inbounds.some(i=>i.tag!=="api" && i.protocol!=="wireguard")) process.exit(1)'
           curl -fsS -H "Authorization: Bearer $owner_token" http://127.0.0.1:18081/api/users > /tmp/pompnet-railway-users.json
           user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-railway-users.json").users.find(u=>u.email==="sample-user").id))')
           curl -fsS -H "Authorization: Bearer $owner_token" -X PUT -H "Content-Type: application/json" \
