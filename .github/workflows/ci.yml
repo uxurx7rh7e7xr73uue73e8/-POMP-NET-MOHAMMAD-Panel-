@@ -166,6 +166,14 @@ jobs:
           tuic_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-tuic.json").id))')
           hy2_port=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-hy2.json").port))')
           tuic_port=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-tuic.json").port))')
+          # Creating the UDP inbounds changes the desired Xray configuration.
+          # Let the 20-second config watcher finish its Xray restart BEFORE
+          # starting the real WebSocket client round-trip tests, otherwise the
+          # test itself is interrupted by the expected engine reload.
+          sleep 22
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused \
+            http://127.0.0.1:18080/healthz -o /tmp/pompnet-post-reload-health.json
+          node -e 'const x=require("/tmp/pompnet-post-reload-health.json"); if(!x.ok || !x.xray) process.exit(1)'
           # The local Docker smoke test below exercises real Hysteria2/TUIC
           # client traffic directly. A fake remote-node agent is not a UDP
           # dataplane test and was causing flaky connection-reset failures.
