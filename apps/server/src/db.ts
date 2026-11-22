@@ -148,6 +148,25 @@ export function migrate(): void {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS managed_nodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      endpoint TEXT NOT NULL DEFAULT '',
+      token_hash TEXT NOT NULL UNIQUE,
+      inbound_ids TEXT NOT NULL DEFAULT '[]',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'pending',
+      last_seen INTEGER,
+      agent_version TEXT NOT NULL DEFAULT '',
+      xray_version TEXT NOT NULL DEFAULT '',
+      platform TEXT NOT NULL DEFAULT '',
+      arch TEXT NOT NULL DEFAULT '',
+      config_hash TEXT NOT NULL DEFAULT '',
+      last_error TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS notification_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
