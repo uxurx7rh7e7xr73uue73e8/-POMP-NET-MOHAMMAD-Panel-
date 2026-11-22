@@ -6,7 +6,7 @@ This directory contains the real remote-node worker used by the panel's managed_
 
 - Linux server with a public IP and the inbound ports assigned in the panel open in its firewall/provider firewall.
 - Node.js 22 or newer.
-- Node.js 22+. Xray-core is required only for Xray protocols; Hysteria2/TUIC-only nodes run without Xray. The installer downloads sing-box v1.14.4 for supported Linux architectures.
+- The installer provisions Node.js 22+, official Xray-core v26.11.9, and sing-box v1.14.4 on supported Ubuntu/Debian Linux architectures. It also accepts an already installed Xray binary. Run it on a clean node or a host where the configured listener ports are available.
 - Controller reachable over HTTPS.
 - One node token created from the panel. The token is displayed once; rotate it if lost.
 
