@@ -154,6 +154,26 @@ jobs:
           tuic_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-tuic.json").id))')
           hy2_port=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-hy2.json").port))')
           tuic_port=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-tuic.json").port))')
+          curl -fsS -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
+            -d "{\"name\":\"ci-udp-node\",\"endpoint\":\"https://udp-node.example.com\",\"inboundIds\":[${hy2_id},${tuic_id}]}" \
+            http://127.0.0.1:18080/api/nodes > /tmp/pompnet-udp-node-create.json
+          udp_node_token=$(node -e 'process.stdout.write(require("/tmp/pompnet-udp-node-create.json").token)')
+          curl -fsS -H "Authorization: Bearer $udp_node_token" http://127.0.0.1:18080/api/node-agent/config > /tmp/pompnet-udp-node-config.json
+          node -e 'const x=require("/tmp/pompnet-udp-node-config.json"); const types=(x.singBoxConfig?.inbounds||[]).map(i=>i.type); if(!types.includes("hysteria2")||!types.includes("tuic")||!x.configHash) process.exit(1)'
+          cat > /tmp/pompnet-fake-sing-box <<'SH'
+          #!/usr/bin/env node
+          if (process.argv[2] === "check") process.exit(0);
+          setInterval(() => {}, 1000);
+          SH
+          chmod +x /tmp/pompnet-fake-sing-box
+          POMP_CONTROLLER_URL=http://127.0.0.1:18080 POMP_NODE_TOKEN="$udp_node_token" XRAY_BIN=/tmp/pompnet-fake-xray SING_BOX_BIN=/tmp/pompnet-fake-sing-box POMP_NODE_DATA_DIR=/tmp/pompnet-udp-node-agent POMP_NODE_TLS_CERT_FILE=/tmp/pompnet-certs/server.crt POMP_NODE_TLS_KEY_FILE=/tmp/pompnet-certs/server.key node node-agent/agent.mjs > /tmp/pompnet-udp-node-agent.log 2>&1 &
+          agent_pid=$!
+          sleep 3
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/nodes > /tmp/pompnet-udp-node-status.json
+          node -e 'const n=require("/tmp/pompnet-udp-node-status.json").nodes.find(x=>x.name==="ci-udp-node"); if(!n || n.status!=="online" || !n.config_hash) process.exit(1)'
+          kill "$agent_pid" >/dev/null 2>&1 || true
+          wait "$agent_pid" || true
+          agent_pid=""
           curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/users > /tmp/pompnet-users.json
           user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-users.json").users.find(u=>u.email==="sample-user").id))')
           curl -fsS -b /tmp/pompnet-cookies.txt -X PUT -H "Content-Type: application/json" \
