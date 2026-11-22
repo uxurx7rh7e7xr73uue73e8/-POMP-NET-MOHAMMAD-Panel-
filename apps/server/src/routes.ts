@@ -656,7 +656,8 @@ api.post("/support/tickets/:id/reply", requirePermission("users"), async (req: A
   const id = Number(req.params.id);
   const body = z.object({ message: z.string().trim().min(1).max(4000) }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid message" }); return; }
-  const ticket = db.prepare("SELECT * FROM support_tickets WHERE id=?").get(id) as { id:number; telegram_id:string; status:string } | undefined;
+  const owner = req.admin!.role === "owner";
+  const ticket = db.prepare("SELECT t.* FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=? AND (? = 1 OR u.created_by = ?)").get(id, owner ? 1 : 0, req.admin!.id) as { id:number; telegram_id:string; status:string } | undefined;
   if (!ticket) { res.status(404).json({ error: "not found" }); return; }
   const now = Date.now();
   db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'admin', ?, ?, ?)")
@@ -671,8 +672,9 @@ api.post("/support/tickets/:id/reply", requirePermission("users"), async (req: A
 api.patch("/support/tickets/:id", requirePermission("users"), (req, res) => {
   const body = z.object({ status: z.enum(["open", "pending", "closed"]), priority: z.enum(["low", "normal", "high"]).optional() }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid ticket state" }); return; }
-  const info = db.prepare("UPDATE support_tickets SET status=?, priority=COALESCE(?, priority), updated_at=? WHERE id=?")
-    .run(body.data.status, body.data.priority || null, Date.now(), Number(req.params.id));
+  const owner = req.admin!.role === "owner";
+  const info = db.prepare("UPDATE support_tickets SET status=?, priority=COALESCE(?, priority), updated_at=? WHERE id=? AND (? = 1 OR EXISTS (SELECT 1 FROM users u WHERE u.id=support_tickets.user_id AND u.created_by=?))")
+    .run(body.data.status, body.data.priority || null, Date.now(), Number(req.params.id), owner ? 1 : 0, req.admin!.id);
   if (Number(info.changes) === 0) { res.status(404).json({ error: "not found" }); return; }
   res.json({ ok: true });
 });
