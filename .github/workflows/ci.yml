@@ -131,6 +131,38 @@ jobs:
           }
           NODE
 
+          node <<'NODE'
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const http = require("node:http");
+          const links = fs.readFileSync("/tmp/pompnet-sub.txt", "utf8").trim().split(/\\r?\\n/);
+          const vlessWs = links.find(x => x.startsWith("vless://") && new URL(x).searchParams.get("type") === "ws");
+          const vlessXhttp = links.find(x => x.startsWith("vless://") && new URL(x).searchParams.get("type") === "xhttp");
+          assert.ok(vlessWs, "Missing VLESS WebSocket link");
+          assert.ok(vlessXhttp && new URL(vlessXhttp).searchParams.get("mode") === "auto", "XHTTP link mode must match Xray config");
+          const path = new URL(vlessWs).searchParams.get("path");
+          assert.ok(path && path.startsWith("/pompnet/ws-"), "Invalid generated WebSocket path");
+          const req = http.request({
+            host: "127.0.0.1", port: 18080, path,
+            headers: {
+              Connection: "Upgrade", Upgrade: "websocket",
+              "Sec-WebSocket-Version": "13",
+              "Sec-WebSocket-Key": Buffer.from("pompnet-ci-websocket-key").toString("base64")
+            }
+          });
+          req.setTimeout(5000, () => req.destroy(new Error("WebSocket tunnel timed out")));
+          req.on("upgrade", (res, socket) => {
+            try {
+              assert.equal(res.statusCode, 101, "Expected Xray WebSocket handshake through Railway ingress");
+              socket.destroy();
+              console.log("VLESS WebSocket ingress-to-Xray handshake passed.");
+            } catch (error) { socket.destroy(); throw error; }
+          });
+          req.on("response", res => { throw new Error("Expected WebSocket upgrade, got HTTP " + res.statusCode); });
+          req.on("error", error => { console.error(error); process.exitCode = 1; });
+          req.end();
+          NODE
+
           echo "CI stage: restart same service container with the same persistent volume"
           docker rm -f pompnet-ci
           docker run -d --name pompnet-ci -p 18080:8080 \
