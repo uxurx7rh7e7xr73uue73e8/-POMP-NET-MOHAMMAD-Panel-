@@ -20,6 +20,7 @@ interface LinkContext {
   user: UserWithInbounds;
   inbound: Inbound;
   allInbounds: Inbound[];
+  port?: number;
 }
 
 const GB = 1024 * 1024 * 1024;
@@ -101,13 +102,13 @@ function qs(params: Record<string, string>): string {
 function vlessLink(ctx: LinkContext): string {
   const { user, address } = ctx;
   const query = qs({ ...commonQuery(ctx), encryption: "none" });
-  return `vless://${user.uuid}@${address}:443?${query}#${encodeURIComponent(inboundDisplayLabel(ctx.inbound, user, ctx.allInbounds))}`;
+  return `vless://${user.uuid}@${address}:${ctx.port ?? 443}?${query}#${encodeURIComponent(inboundDisplayLabel(ctx.inbound, user, ctx.allInbounds))}`;
 }
 
 function trojanLink(ctx: LinkContext): string {
   const { user, address } = ctx;
   const query = qs(commonQuery(ctx));
-  return `trojan://${encodeURIComponent(user.password)}@${address}:443?${query}#${encodeURIComponent(
+  return `trojan://${encodeURIComponent(user.password)}@${address}:${ctx.port ?? 443}?${query}#${encodeURIComponent(
     inboundDisplayLabel(ctx.inbound, user, ctx.allInbounds),
   )}`;
 }
@@ -125,7 +126,7 @@ function wireGuardLink(ctx: LinkContext): string {
     reserved: "0,0,0",
   });
   const label = inboundDisplayLabel(inbound, user, ctx.allInbounds);
-  return `wireguard://${peer.private_key}@${address}:${inbound.port}?${params}#${encodeURIComponent(label)}`;
+  return `wireguard://${peer.private_key}@${address}:${ctx.port ?? inbound.port}?${params}#${encodeURIComponent(label)}`;
 }
 
 function hysteria2Link(ctx: LinkContext): string {
@@ -146,8 +147,8 @@ function proxyLink(ctx: LinkContext): string {
   const { user, inbound, address } = ctx;
   const scheme = inbound.protocol === "socks" ? "socks" : "http";
   const endpoint = getPublicTcpProxyEndpoint(inbound);
-  const proxyAddress = endpoint?.host || address;
-  const proxyPort = endpoint?.port || inbound.port;
+  const proxyAddress = ctx.port !== undefined ? address : (endpoint?.host || address);
+  const proxyPort = ctx.port ?? endpoint?.port ?? inbound.port;
   const label = encodeURIComponent(inboundDisplayLabel(inbound, user, ctx.allInbounds));
   return `${scheme}://${encodeURIComponent(user.email)}:${encodeURIComponent(user.password)}@${proxyAddress}:${proxyPort}#${label}`;
 }
@@ -159,7 +160,7 @@ function vmessLink(ctx: LinkContext): string {
     v: "2",
     ps: inboundDisplayLabel(inbound, user, ctx.allInbounds),
     add: address,
-    port: "443",
+    port: String(ctx.port ?? 443),
     id: user.uuid,
     aid: "0",
     scy: "auto",
@@ -200,7 +201,7 @@ function resolveAddress(host: string): string {
   return clean || host;
 }
 
-function activeNodeTargets(inboundId: number): { name: string; host: string }[] {
+function activeNodeTargets(inboundId: number): { name: string; host: string; port: number | null }[] {
   const rows = db.prepare("SELECT name, endpoint, inbound_ids, last_seen FROM managed_nodes WHERE enabled = 1 AND status = 'online' AND last_seen > ?")
     .all(Date.now() - 90_000) as { name: string; endpoint: string; inbound_ids: string; last_seen: number }[];
   return rows.flatMap((row) => {
@@ -210,7 +211,7 @@ function activeNodeTargets(inboundId: number): { name: string; host: string }[] 
     if (ids.length > 0 && !ids.includes(inboundId)) return [];
     try {
       const url = new URL(row.endpoint);
-      return [{ name: row.name, host: url.hostname }];
+      return [{ name: row.name, host: url.hostname, port: url.port ? Number(url.port) : null }];
     } catch {
       return [];
     }
@@ -226,23 +227,28 @@ export function buildUserLinks(
   return inbounds
     .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
     .flatMap((inbound) => {
+      const links: { tag: string; protocol: string; transport: string; link: string }[] = [];
       if (isPubliclyReachableInbound(inbound)) {
-        return [{ tag: inboundDisplayLabel(inbound, user, inbounds), protocol: inbound.protocol, transport: inbound.transport,
-          link: buildLink({ host, address, user, inbound, allInbounds: inbounds }) }];
-      }
-      // Railway cannot expose UDP itself. A healthy, authenticated remote node
-      // can publish a WireGuard endpoint directly without opening UDP on Railway.
-      if (inbound.protocol === "wireguard") {
-        return activeNodeTargets(inbound.id).map((node) => {
-          const nodeInbound = { ...inbound, tag: `${inbound.tag}-${node.name}` };
-          return {
-            tag: inboundDisplayLabel(nodeInbound, user, inbounds),
-            protocol: inbound.protocol,
-            transport: inbound.transport,
-            link: buildLink({ host, address: node.host, user, inbound: nodeInbound, allInbounds: inbounds }),
-          };
+        links.push({
+          tag: inboundDisplayLabel(inbound, user, inbounds),
+          protocol: inbound.protocol,
+          transport: inbound.transport,
+          link: buildLink({ host, address, user, inbound, allInbounds: inbounds }),
         });
       }
-      return [];
+      // Healthy authenticated nodes publish their own endpoint for each
+      // explicitly assigned Xray inbound. This also provides a real fallback
+      // for WireGuard when the controller itself runs on Railway (no public UDP).
+      for (const node of activeNodeTargets(inbound.id)) {
+        const nodeInbound = { ...inbound, id: -inbound.id, tag: `${inbound.tag}-${node.name}` };
+        const nodePort = inbound.protocol === "wireguard" ? inbound.port : (node.port ?? inbound.port);
+        links.push({
+          tag: inboundDisplayLabel(nodeInbound, user, inbounds),
+          protocol: inbound.protocol,
+          transport: inbound.transport,
+          link: buildLink({ host: node.host, address: node.host, port: nodePort, user, inbound: nodeInbound, allInbounds: inbounds }),
+        });
+      }
+      return links;
     });
 }
