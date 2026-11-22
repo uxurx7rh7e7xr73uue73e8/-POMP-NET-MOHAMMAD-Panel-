@@ -77,7 +77,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ expireDays }),
     }),
-  createInbound: (payload: { tag: string; protocol: import("./types").Protocol; transport: import("./types").Transport; expireDays: number }) =>
+  createInbound: (payload: { tag: string; protocol: import("./types").Protocol; transport: import("./types").Transport; expireDays: number; serverName?: string }) =>
     request<import("./types").Inbound>("/api/inbounds", { method: "POST", body: JSON.stringify(payload) }),
   deleteInbound: (id: number) => request(`/api/inbounds/${id}`, { method: "DELETE" }),
   users: () =>
