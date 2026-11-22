@@ -59,6 +59,11 @@ export function getRuntimeCapabilities() {
   return {
     platform: railway ? "railway" as const : "self-hosted" as const,
     railway,
+    railwayReplica: {
+      id: railway ? (process.env.RAILWAY_REPLICA_ID || null) : null,
+      region: railway ? (process.env.RAILWAY_REPLICA_REGION || null) : null,
+      note: "Identifies this running replica only; it does not create extra regions or public UDP endpoints.",
+    },
     tcpProxy: {
       configured: tcpProxyConfigured,
       internalPort: tcpProxyConfigured ? internalPort : null,
