@@ -13,7 +13,6 @@ const protocolAccent: Record<string, string> = {
   vless: "#8b35ff",
   vmess: "#168cff",
   trojan: "#b18cff",
-  wireguard: "#35d6a1",
   socks: "#168cff",
   http: "#8b35ff",
   hysteria2: "#35d6a1",
@@ -28,9 +27,7 @@ export default function InboundsPage() {
   const [protocol, setProtocol] = useState<Protocol>("vless");
   const [transport, setTransport] = useState<Transport>("xhttp");
   const [expireDays, setExpireDays] = useState(0);
-  const [serverName, setServerName] = useState("");
 
-  const { data: capabilities } = useQuery({ queryKey: ["runtime-capabilities"], queryFn: api.capabilities });
 
   const { data: inbounds = [] } = useQuery<Inbound[]>({
     queryKey: ["inbounds"],
@@ -54,7 +51,7 @@ export default function InboundsPage() {
     mutationFn: api.createInbound,
     onSuccess: (ib) => {
       refresh();
-      toast.push("success", `Inbound واقعی ${ib.tag} روی پورت ${ib.port} در موتور ${ib.protocol === "hysteria2" || ib.protocol === "tuic" ? "sing-box" : "Xray"} ثبت شد؛ اعمال نهایی پس از بارگذاری موتور انجام می‌شود.`);
+      toast.push("success", `Inbound واقعی ${ib.tag} روی پورت ${ib.port} در Xray ثبت شد.`);
       setTag("POMP-VLESS-PREMIUM");
     },
     onError: (e: Error) => toast.push("error", e.message),
@@ -81,27 +78,18 @@ export default function InboundsPage() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ tag, protocol, transport: protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays, serverName: protocol === "hysteria2" || protocol === "tuic" ? serverName.trim() || undefined : undefined });
+    create.mutate({ tag, protocol, transport, expireDays });
   };
 
-  const isReachable = (ib: Inbound) => {
-    if (!capabilities) return false;
-    if (ib.protocol === "wireguard") return capabilities.wireguardPublicUdp;
-    if (ib.protocol === "hysteria2" || ib.protocol === "tuic") return capabilities.publicUdpProtocols && capabilities.singBox.tlsConfigured && capabilities.singBox.binaryAvailable && (capabilities.singBoxStatus.inbounds === 0 || (capabilities.singBoxStatus.running && !capabilities.singBoxStatus.error));
-    if (!capabilities.railway) return true;
-    if (ib.protocol === "socks" || ib.protocol === "http") {
-      return capabilities.tcpProxy.configured && capabilities.tcpProxy.internalPort === ib.port;
-    }
-    return true;
-  };
-  const enabledCount = inbounds.filter((i) => i.enabled && (!i.expires_at || i.expires_at > Date.now()) && isReachable(i)).length;
+  const isReachable = (_ib: Inbound) => true;
+  const enabledCount = inbounds.filter((i) => i.enabled && (!i.expires_at || i.expires_at > Date.now())).length;
 
   return (
     <div className="pn-sub-page space-y-6" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-heading text-3xl">{t("inbounds")}</h1>
-          <p className="text-sm font-base text-text/60">مدیریت ورودی‌های واقعی Xray و sing-box، پورت‌ها و زمان اعتبار</p>
+          <p className="text-sm font-base text-text/60">مدیریت ورودی‌های واقعی Xray، پورت‌ها و زمان اعتبار</p>
           {capabilities && !capabilities.railway && (!capabilities.singBox.tlsConfigured || !capabilities.singBox.binaryAvailable) && (
             <div className="mt-2 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-xs leading-6 text-amber-100">
               برای فعال‌سازی Hysteria2 و TUIC باید sing-box نصب باشد و متغیرهای SINGBOX_TLS_CERT_FILE و SINGBOX_TLS_KEY_FILE به گواهی و کلید معتبر TLS اشاره کنند. وضعیت موتور: {capabilities.singBox.binaryAvailable ? "نصب است" : "نصب نیست"} · گواهی: {capabilities.singBox.tlsConfigured ? "آماده" : "تنظیم نشده"}.
@@ -141,17 +129,14 @@ export default function InboundsPage() {
               <select value={protocol} onChange={(e) => setProtocol(e.target.value as Protocol)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text">
                 <option value="vless">VLESS</option><option value="vmess">VMess</option><option value="trojan">Trojan</option>
-                <option value="wireguard">WireGuard · UDP</option><option value="hysteria2" disabled={!capabilities?.publicUdpProtocols || !capabilities?.singBox.tlsConfigured || !capabilities?.singBox.binaryAvailable}>Hysteria2 · sing-box UDP</option><option value="tuic" disabled={!capabilities?.publicUdpProtocols || !capabilities?.singBox.tlsConfigured || !capabilities?.singBox.binaryAvailable}>TUIC · sing-box UDP</option><option value="socks">SOCKS5 · Auth</option><option value="http">HTTP Proxy · Auth</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
               ترنسپورت
-              <select value={protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport}
-                disabled={protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" || protocol === "socks" || protocol === "http"}
+              <select value={transport}
                 onChange={(e) => setTransport(e.target.value as Transport)}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text disabled:opacity-60">
                 <option value="xhttp">XHTTP</option><option value="ws">WebSocket</option><option value="httpupgrade">HTTP Upgrade</option>
-                <option value="udp">UDP · WireGuard</option><option value="tcp">TCP · Proxy</option>
               </select>
             </label>
             <label className="space-y-1 text-xs text-text/70">
@@ -159,7 +144,6 @@ export default function InboundsPage() {
               <input type="number" min={0} max={3650} value={expireDays} onChange={(e) => setExpireDays(Number(e.target.value))}
                 className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text" />
             </label>
-            {(protocol === "hysteria2" || protocol === "tuic") && <label className="space-y-1 text-xs text-text/70">دامنه TLS / SNI<input value={serverName} onChange={e=>setServerName(e.target.value)} placeholder="vpn.example.com" required className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text" /><span className="text-[10px] text-text/50">باید با گواهی TLS تنظیم‌شده روی سرور مطابقت داشته باشد.</span></label>}
             <div className="flex items-end">
               <button type="submit" disabled={create.isPending || !tag.trim()}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
@@ -168,7 +152,7 @@ export default function InboundsPage() {
             </div>
           </form>
           <p className="text-[11px] leading-6 text-text/50">
-            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. روی Railway، WireGuard عمومی قابل‌استفاده نیست. SOCKS5 یا HTTP فقط وقتی لینک عمومی می‌گیرد که همان پورت داخلی به TCP Proxy متصل و سه متغیر RAILWAY_TCP_PROXY_INTERNAL_PORT، PUBLIC_TCP_PROXY_HOST و PUBLIC_TCP_PROXY_PORT تنظیم شده باشند. 
+            پورت به‌صورت خودکار از محدوده XRAY_INBOUND_BASE_PORT انتخاب می‌شود. پروتکل‌های این بخش مستقیماً توسط Xray مدیریت می‌شوند. 
           </p>
         </CardContent>
       </Card>
@@ -204,8 +188,8 @@ export default function InboundsPage() {
                 <div className="mt-3 grid grid-cols-3 gap-1.5">
                   <Badge variant="neutral" className="justify-center truncate text-[10px] uppercase">{ib.protocol}</Badge>
                   <Badge variant="default" className="justify-center truncate text-[10px] uppercase">{ib.transport}</Badge>
-                  <Badge variant={!reachable ? "danger" : expired ? "danger" : ib.enabled ? "success" : "neutral"} className="justify-center gap-1 text-[10px]">
-                    <Lock className="h-3 w-3 shrink-0" /> {!reachable ? "غیرقابل‌انتشار در Railway" : expired ? "منقضی" : ib.enabled ? "فعال" : "خاموش"}
+                  <Badge variant={expired ? "danger" : ib.enabled ? "success" : "neutral"} className="justify-center gap-1 text-[10px]">
+                    <Lock className="h-3 w-3 shrink-0" /> {expired ? "منقضی" : ib.enabled ? "فعال" : "خاموش"}
                   </Badge>
                 </div>
                 <div className="mt-3 space-y-1.5 border-t border-border/30 pt-2.5 text-[11px] text-text/60">
