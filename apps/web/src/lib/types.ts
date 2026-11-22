@@ -1,6 +1,23 @@
 export type Protocol = "vless" | "vmess" | "trojan";
-export type Transport = "ws" | "xhttp" | "httpupgrade";
+export type Transport = "ws" | "xhttp" | "httpupgrade" | "udp" | "tcp";
 export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
+
+export interface RuntimeCapabilities {
+  platform: "railway" | "self-hosted";
+  railway: boolean;
+  railwayReplica: { id: string | null; region: string | null; note: string };
+  tcpProxy: {
+    configured: boolean;
+    internalPort: number | null;
+    publicHost: string | null;
+    publicPort: number | null;
+    note: string;
+  };
+  wireguardPublicUdp: boolean;
+  publicUdpProtocols: boolean;
+  singBox: { tlsConfigured: boolean; binaryAvailable: boolean; version: string };
+  singBoxStatus: { running: boolean; uptime: number; inbounds: number; version: string; error: string };
+}
 
 export type Permission =
   | "dashboard"
@@ -42,6 +59,7 @@ export interface Inbound {
   host: string;
   enabled: number;
   created_at: number;
+  expires_at: number | null;
 }
 
 export interface User {

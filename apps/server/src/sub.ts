@@ -4,8 +4,8 @@ import fs from "node:fs";
 import { db } from "./db.js";
 import { config, publicHost } from "./config.js";
 import { listInbounds } from "./inbounds.js";
-import { buildUserLinks } from "./links.js";
-import { buildClashConfig, buildSingboxConfig } from "./sub-formats.js";
+import { buildUserLinks, subscriptionProfileTitle } from "./links.js";
+import { buildClashConfig } from "./sub-formats.js";
 import {
   getUserByToken,
   markSubFirstSeen,
@@ -33,7 +33,7 @@ function usagePayload(token: string, host: string) {
   if (!user) return null;
   markSubFirstSeen(user.id);
   const row = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as unknown as UserRecord;
-  if (isSubExpired(row)) return { expired: true as const };
+  if (isSubExpired(row) || !isUserActive(user)) return { expired: true as const };
   const inbounds = listInbounds();
   const links = buildUserLinks(host, user, inbounds);
   return {
@@ -53,6 +53,7 @@ function usagePayload(token: string, host: string) {
       comment: user.comment,
     },
     links,
+    profileTitle: subscriptionProfileTitle(user, inbounds),
     history: usageHistory(user.id),
   };
 }
@@ -86,7 +87,7 @@ function rawLinks(token: string, host: string) {
   if (!user) return null;
   markSubFirstSeen(user.id);
   const row = db.prepare("SELECT * FROM users WHERE id = ?").get(user.id) as unknown as UserRecord;
-  if (isSubExpired(row)) return { expired: true as const };
+  if (isSubExpired(row) || !isUserActive(user)) return { expired: true as const };
   const inbounds = listInbounds();
   return { expired: false as const, user, inbounds };
 }
@@ -103,23 +104,8 @@ sub.get("/:token/clash", (req, res) => {
     return;
   }
   res.setHeader("Content-Type", "text/yaml; charset=utf-8");
-  res.setHeader("Profile-Title", Buffer.from(`POMP NET MOHAMMAD ${data.user.email}`).toString("base64"));
+  res.setHeader("Profile-Title", Buffer.from(subscriptionProfileTitle(data.user, data.inbounds)).toString("base64"));
   res.send(buildClashConfig(host, data.user, data.inbounds));
-});
-
-sub.get("/:token/singbox", (req, res) => {
-  const host = publicHost(req.headers.host);
-  const data = rawLinks(req.params.token, host);
-  if (!data) {
-    res.status(404).send("not found");
-    return;
-  }
-  if (data.expired) {
-    res.status(410).send("expired");
-    return;
-  }
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.send(buildSingboxConfig(host, data.user, data.inbounds));
 });
 
 sub.get("/:token", (req, res) => {
@@ -148,7 +134,7 @@ sub.get("/:token", (req, res) => {
   res.setHeader("Content-Type", "text/plain; charset=utf-8");
   res.setHeader("Subscription-Userinfo", subUserInfo(data.user));
   res.setHeader("Profile-Update-Interval", "12");
-  res.setHeader("Profile-Title", Buffer.from(`POMP NET MOHAMMAD ${data.user.email}`).toString("base64"));
+  res.setHeader("Profile-Title", Buffer.from(data.profileTitle).toString("base64"));
   res.send(Buffer.from(body).toString("base64"));
 });
 

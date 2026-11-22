@@ -1,9 +1,9 @@
-name: POMP NET QUANTUM NEXUS CI
+name: POMP NET single-service Railway CI
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, pompnet-quantum-redesign]
   pull_request:
     branches: [main]
 
@@ -30,7 +30,7 @@ jobs:
         run: npm run build
 
   docker-runtime-smoke:
-    name: Docker startup, API and Xray runtime smoke test
+    name: Single-container Railway-mode runtime smoke test
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -38,27 +38,32 @@ jobs:
         uses: actions/checkout@v4
       - name: Build production Docker image
         run: docker build --pull -t pompnet-quantum-nexus:ci .
-      - name: Start isolated container
+      - name: Start one Railway-mode service with persistent volume
         run: |
+          docker volume create pompnet-ci-data
           docker run -d --name pompnet-ci -p 18080:8080 \
             -e NODE_ENV=production \
             -e PORT=8080 \
             -e SIDERAIL_DATA_DIR=/data \
-            -e XRAY_VERSION=v26.9.9 \
+            -e XRAY_VERSION=v26.11.9 \
+            -e RAILWAY_PROJECT_ID=ci-project \
+            -v pompnet-ci-data:/data \
             pompnet-quantum-nexus:ci
-      - name: Verify API and live Xray process
+      - name: Verify health, owner login, local inbounds and subscription
         shell: bash
         run: |
           set -euo pipefail
           cleanup() {
             docker logs pompnet-ci || true
             docker rm -f pompnet-ci >/dev/null 2>&1 || true
+            docker volume rm pompnet-ci-data >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
+
           ready=0
           for attempt in $(seq 1 120); do
             if curl -fsS http://127.0.0.1:18080/healthz -o /tmp/pompnet-health.json; then
-              if node -e 'const x=require("/tmp/pompnet-health.json"); process.exit(x.ok && x.xray ? 0 : 1)'; then
+              if node -e 'const x=require("/tmp/pompnet-health.json");process.exit(x.ok && x.xray ? 0 : 1)'; then
                 ready=1
                 break
               fi
@@ -66,29 +71,127 @@ jobs:
             sleep 2
           done
           if [ "$ready" -ne 1 ]; then
-            echo "Panel did not become healthy with a running Xray process."
+            echo "Panel/Xray health check did not become ready."
             cat /tmp/pompnet-health.json 2>/dev/null || true
             exit 1
           fi
-          curl -fsS http://127.0.0.1:18080/api/status | tee /tmp/pompnet-status.json
-          node -e 'const x=require("/tmp/pompnet-status.json"); if (x.name !== "POMP NET MOHAMMAD — QUANTUM NEXUS" || x.setup !== false) process.exit(1)'
+
+          curl -fsS http://127.0.0.1:18080/api/status -o /tmp/pompnet-status.json
+          node -e 'const x=require("/tmp/pompnet-status.json");if(x.name!=="POMP NET MOHAMMAD — QUANTUM NEXUS"||x.setup!==false)throw Error("Unexpected initial panel status")'
+
+          curl -fsS http://127.0.0.1:18080/api/capabilities -o /tmp/pompnet-capabilities.json
+          node -e 'const x=require("/tmp/pompnet-capabilities.json");if(!x.railway||x.wireguardPublicUdp!==false||x.publicUdpProtocols!==false)throw Error("Railway single-service capability mismatch")'
+
           curl -fsS -c /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
             -d '{"username":"ci-owner","password":"TempPass123!"}' \
-            http://127.0.0.1:18080/api/setup > /tmp/pompnet-setup.json
-          curl -fsS -b /tmp/pompnet-cookies.txt \
-            http://127.0.0.1:18080/api/me > /tmp/pompnet-me.json
-          node -e 'const x=require("/tmp/pompnet-me.json"); if (!x.admin || x.admin.role !== "owner") process.exit(1)'
-          docker exec pompnet-ci node -e '
-            const net = require("node:net");
-            const ports = [20000, 20001, 20002, 20003, 20004];
-            Promise.all(ports.map(port => new Promise((resolve, reject) => {
-              const socket = net.createConnection({host:"127.0.0.1", port});
-              socket.setTimeout(4000);
-              socket.once("connect", () => { socket.destroy(); resolve(port); });
-              socket.once("timeout", () => { socket.destroy(); reject(new Error("timeout on "+port)); });
-              socket.once("error", reject);
-            }))).then(open => {
-              console.log("Xray inbound TCP listeners open:", open.join(", "));
-            }).catch(error => { console.error(error); process.exit(1); });
-          '
-          echo "Docker image, setup/auth API, Xray process and five inbound listeners passed."
+            http://127.0.0.1:18080/api/setup -o /tmp/pompnet-setup.json
+          node -e 'const x=require("/tmp/pompnet-setup.json");if(!x.ok||!x.token)throw Error("Owner setup failed")'
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/me -o /tmp/pompnet-me.json
+          node -e 'const x=require("/tmp/pompnet-me.json");if(!x.admin||x.admin.role!=="owner")throw Error("Owner session failed")'
+
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/inbounds -o /tmp/pompnet-inbounds.json
+          node <<'NODE'
+          const assert = require("node:assert/strict");
+          const inbounds = require("/tmp/pompnet-inbounds.json");
+          assert.ok(Array.isArray(inbounds) && inbounds.length >= 3, "Expected seeded local inbounds");
+          const allowed = new Set(["vless", "vmess", "trojan"]);
+          assert.ok(inbounds.every(x => allowed.has(x.protocol)), "Unexpected inbound protocol exposed");
+          for (const tag of ["VLESS-WS", "VMess-WS", "Trojan-WS"]) {
+            assert.ok(inbounds.some(x => x.tag === tag), "Missing seeded inbound: " + tag);
+          }
+          assert.ok(inbounds.every(x => ["ws", "xhttp", "httpupgrade"].includes(x.transport)), "Unexpected transport exposed");
+          NODE
+
+          code=$(curl -sS -o /tmp/pompnet-rejected.json -w "%{http_code}" \
+            -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
+            -d '{"tag":"CI-UNSUPPORTED","protocol":"hysteria2","transport":"udp"}' \
+            http://127.0.0.1:18080/api/inbounds)
+          test "$code" = "400"
+
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/users -o /tmp/pompnet-users.json
+          node <<'NODE'
+          const assert = require("node:assert/strict");
+          const data = require("/tmp/pompnet-users.json");
+          const user = (data.users || []).find(x => x.email === "sample-user");
+          assert.ok(user && user.uuid && user.password && user.sub_token, "Seeded sample user/subscription credentials missing");
+          require("node:fs").writeFileSync("/tmp/pompnet-sub-token", user.sub_token);
+          NODE
+          token=$(cat /tmp/pompnet-sub-token)
+          curl -fsS "http://127.0.0.1:18080/sub/$token?raw=1" -o /tmp/pompnet-sub.b64
+          base64 -d /tmp/pompnet-sub.b64 > /tmp/pompnet-sub.txt
+          node <<'NODE'
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const body = fs.readFileSync("/tmp/pompnet-sub.txt", "utf8");
+          for (const prefix of ["vless://", "vmess://", "trojan://"]) {
+            assert.ok(body.includes(prefix), "Subscription missing " + prefix);
+          }
+          for (const forbidden of ["wireguard://", "hysteria2://", "tuic://", "socks://"]) {
+            assert.ok(!body.includes(forbidden), "Unexpected subscription protocol " + forbidden);
+          }
+          NODE
+
+          node <<'NODE'
+          const assert = require("node:assert/strict");
+          const fs = require("node:fs");
+          const http = require("node:http");
+          const links = fs.readFileSync("/tmp/pompnet-sub.txt", "utf8").trim().split(/\r?\n/);
+          const vlessWs = links.find(x => x.startsWith("vless://") && new URL(x).searchParams.get("type") === "ws");
+          const vlessXhttp = links.find(x => x.startsWith("vless://") && new URL(x).searchParams.get("type") === "xhttp");
+          assert.ok(vlessWs, "Missing VLESS WebSocket link");
+          assert.ok(vlessXhttp && new URL(vlessXhttp).searchParams.get("mode") === "auto", "XHTTP link mode must match Xray config");
+          const path = new URL(vlessWs).searchParams.get("path");
+          assert.ok(path && path.startsWith("/pompnet/ws-"), "Invalid generated WebSocket path");
+          const req = http.request({
+            host: "127.0.0.1", port: 18080, path,
+            headers: {
+              Connection: "Upgrade", Upgrade: "websocket",
+              "Sec-WebSocket-Version": "13",
+              "Sec-WebSocket-Key": Buffer.alloc(16, 7).toString("base64")
+            }
+          });
+          req.setTimeout(5000, () => req.destroy(new Error("WebSocket tunnel timed out")));
+          req.on("upgrade", (res, socket) => {
+            try {
+              assert.equal(res.statusCode, 101, "Expected Xray WebSocket handshake through Railway ingress");
+              socket.destroy();
+              console.log("VLESS WebSocket ingress-to-Xray handshake passed.");
+            } catch (error) { socket.destroy(); throw error; }
+          });
+          req.on("response", res => { throw new Error("Expected WebSocket upgrade, got HTTP " + res.statusCode); });
+          req.on("error", error => { console.error(error); process.exitCode = 1; });
+          req.end();
+          NODE
+
+          echo "CI stage: restart same service container with the same persistent volume"
+          docker rm -f pompnet-ci
+          docker run -d --name pompnet-ci -p 18080:8080 \
+            -e NODE_ENV=production \
+            -e PORT=8080 \
+            -e SIDERAIL_DATA_DIR=/data \
+            -e XRAY_VERSION=v26.11.9 \
+            -e RAILWAY_PROJECT_ID=ci-project \
+            -v pompnet-ci-data:/data \
+            pompnet-quantum-nexus:ci
+          ready=0
+          for attempt in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:18080/healthz -o /tmp/pompnet-health-after-restart.json; then
+              if node -e 'const x=require("/tmp/pompnet-health-after-restart.json");process.exit(x.ok && x.xray ? 0 : 1)'; then
+                ready=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          test "$ready" = "1"
+          curl -fsS http://127.0.0.1:18080/api/status -o /tmp/pompnet-status-after-restart.json
+          node -e 'const x=require("/tmp/pompnet-status-after-restart.json");if(x.setup!==true)throw Error("Owner setup did not persist")'
+          curl -fsS -c /tmp/pompnet-cookies-after-restart.txt -H "Content-Type: application/json" \
+            -d '{"username":"ci-owner","password":"TempPass123!"}' \
+            http://127.0.0.1:18080/api/login -o /tmp/pompnet-login-after-restart.json
+          node -e 'const x=require("/tmp/pompnet-login-after-restart.json");if(!x.ok||!x.token)throw Error("Persisted owner login failed")'
+          curl -fsS -b /tmp/pompnet-cookies-after-restart.txt http://127.0.0.1:18080/api/me -o /tmp/pompnet-me-after-restart.json
+          node -e 'const x=require("/tmp/pompnet-me-after-restart.json");if(!x.admin||x.admin.role!=="owner")throw Error("Persisted owner session/login check failed")'
+          curl -fsS -b /tmp/pompnet-cookies-after-restart.txt http://127.0.0.1:18080/api/inbounds -o /tmp/pompnet-inbounds-after-restart.json
+          node -e 'const x=require("/tmp/pompnet-inbounds-after-restart.json");if(!Array.isArray(x)||x.length<3)throw Error("Inbound data did not persist")'
+          echo "Single-container Railway-mode runtime, Xray health, local inbounds, subscription and volume persistence checks passed."

@@ -22,6 +22,8 @@ import RoutingPage from "./pages/routing";
 import BotPage from "./pages/bot";
 import ActivityPage from "./pages/activity";
 import SettingsPage from "./pages/settings";
+import SupportPage from "./pages/support";
+import NodesPage from "./pages/nodes";
 import SubscriptionPage from "./pages/subscription";
 
 const PERM_ROUTE: Record<string, string> = {
@@ -58,7 +60,7 @@ function FullscreenLoader() {
       </div>
       <div className="text-center">
         <div className="font-heading text-xl tracking-tight">POMP NET MOHAMMAD</div>
-        <div className="text-[10px] uppercase tracking-[.24em] text-main">QUANTUM NEXUS</div>
+        <div className="text-[10px] uppercase tracking-[.24em] text-main">SELFVERSE</div>
         <div className="mt-1 flex items-center justify-center gap-2 text-sm text-text/60">
           <Spinner className="h-4 w-4" />
           Loading…
@@ -164,6 +166,8 @@ export default function App() {
             </RequirePerm>
           }
         />
+        <Route path="/support" element={<RequirePerm perm="users"><SupportPage /></RequirePerm>} />
+        <Route path="/nodes" element={<RequirePerm perm="settings"><NodesPage /></RequirePerm>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

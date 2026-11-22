@@ -1,3 +1,10 @@
+export interface NodeRecord {
+  id: number; name: string; endpoint: string; inbound_ids: number[]; enabled: number;
+  status: "pending" | "online" | "error" | "disabled" | "offline"; last_seen: number | null;
+  agent_version: string; xray_version: string; platform: string; arch: string;
+  config_hash: string; last_error: string; created_at: number; updated_at: number;
+}
+
 export interface ApiError {
   error: string;
 }
@@ -45,6 +52,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   status: () => request<{ setup: boolean; name: string }>("/api/status"),
+  capabilities: () => request<import("./types").RuntimeCapabilities>("/api/capabilities"),
   setup: (username: string, password: string) =>
     request<{ ok: boolean }>("/api/setup", {
       method: "POST",
@@ -64,6 +72,14 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
     }),
+  renewInbound: (id: number, expireDays: number) =>
+    request<import("./types").Inbound>(`/api/inbounds/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ expireDays }),
+    }),
+  createInbound: (payload: { tag: string; protocol: import("./types").Protocol; transport: import("./types").Transport; expireDays: number; serverName?: string }) =>
+    request<import("./types").Inbound>("/api/inbounds", { method: "POST", body: JSON.stringify(payload) }),
+  deleteInbound: (id: number) => request(`/api/inbounds/${id}`, { method: "DELETE" }),
   users: () =>
     request<{ users: import("./types").User[]; summary: import("./types").UserSummary }>(
       "/api/users",
@@ -88,6 +104,14 @@ export const api = {
     request(`/api/users/${id}/reset-traffic`, { method: "POST" }),
   rotateToken: (id: number) =>
     request<import("./types").User>(`/api/users/${id}/rotate-token`, { method: "POST" }),
+  renewUser: (id: number, days: number, note?: string) =>
+    request<{ ok: boolean; user: import("./types").User; expireAt: number }>(`/api/users/${id}/renew`, { method: "POST", body: JSON.stringify({ days, note }) }),
+  userRenewals: (id: number) =>
+    request<{ id: number; days: number; previous_expire_at: number | null; new_expire_at: number | null; actor: string; note: string; created_at: number }[]>(`/api/users/${id}/renewals`),
+  supportTickets: () => request<{ tickets: { id: number; user_id: number | null; user_email: string | null; telegram_id: string; subject: string; status: string; priority: string; created_at: number; updated_at: number; message_count: number }[] }>("/api/support/tickets"),
+  supportTicket: (id: number) => request<{ ticket: Record<string, unknown>; messages: { id: number; ticket_id: number; sender_type: string; sender_id: string; message: string; created_at: number }[] }>(`/api/support/tickets/${id}`),
+  replySupportTicket: (id: number, message: string) => request<{ ok: boolean; telegramDelivered: boolean }>(`/api/support/tickets/${id}/reply`, { method: "POST", body: JSON.stringify({ message }) }),
+  updateSupportTicket: (id: number, status: "open" | "pending" | "closed", priority?: "low" | "normal" | "high") => request<{ ok: boolean }>(`/api/support/tickets/${id}`, { method: "PATCH", body: JSON.stringify({ status, priority }) }),
   clientIps: (id: number) =>
     request<{ ip: string; last_seen: number }[]>(`/api/users/${id}/ips`),
   activity: () => request<import("./types").ActivityEntry[]>("/api/activity"),
@@ -107,6 +131,13 @@ export const api = {
   importBackup: (data: unknown) =>
     request("/api/backup/import", { method: "POST", body: JSON.stringify(data) }),
   restartXray: () => request("/api/system/restart-xray", { method: "POST" }),
+  nodes: () => request<{ nodes: NodeRecord[] }>("/api/nodes"),
+  createNode: (payload: { name: string; endpoint?: string; inboundIds?: number[] }) =>
+    request<{ id: number; name: string; endpoint: string; token: string; installCommand: string }>("/api/nodes", { method: "POST", body: JSON.stringify(payload) }),
+  updateNode: (id: number, payload: { name?: string; endpoint?: string; inboundIds?: number[]; enabled?: boolean }) =>
+    request<{ ok: boolean }>(`/api/nodes/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  rotateNodeToken: (id: number) => request<{ token: string }>(`/api/nodes/${id}/rotate-token`, { method: "POST" }),
+  deleteNode: (id: number) => request<{ ok: boolean }>(`/api/nodes/${id}`, { method: "DELETE" }),
   admins: () =>
     request<{ admins: import("./types").AdminInfo[]; permissions: string[] }>("/api/admins"),
   createAdmin: (payload: {

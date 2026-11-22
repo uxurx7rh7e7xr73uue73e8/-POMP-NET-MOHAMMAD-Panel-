@@ -1,5 +1,5 @@
 import https from "node:https";
-import { getSetting, setSetting } from "./db.js";
+import { db, getSetting, setSetting } from "./db.js";
 import { exportData } from "./backup.js";
 import { createUser, listUsers, isUserActive } from "./users.js";
 import { listInbounds, listEnabledInbounds } from "./inbounds.js";
@@ -178,6 +178,61 @@ export async function testBot(
   return anyOk ? { ok: true } : { ok: false, error: lastError };
 }
 
+export async function sendTelegramToChat(chatId: string, message: string): Promise<boolean> {
+  const cfg = getBotConfig();
+  if (!cfg.enabled || !cfg.token) return false;
+  const result = await apiCall(cfg.token, "sendMessage", {
+    chat_id: chatId, text: message, parse_mode: "HTML", disable_web_page_preview: true,
+  });
+  return result.ok;
+}
+
+export async function sendBroadcastToLinkedUsers(message: string): Promise<{ sent: number; failed: number; skipped: number }> {
+  const cfg = getBotConfig();
+  if (!cfg.enabled || !cfg.token) throw new Error("ربات فعال نیست یا توکن تنظیم نشده است");
+  const recipients = [...new Set(listUsers().map((u) => u.telegram_id).filter(Boolean))];
+  let sent = 0, failed = 0;
+  for (const chatId of recipients) {
+    const result = await apiCall(cfg.token, "sendMessage", {
+      chat_id: chatId, text: message, parse_mode: "HTML", disable_web_page_preview: true,
+    });
+    if (result.ok) sent++;
+    else failed++;
+    await sleep(40);
+  }
+  return { sent, failed, skipped: 0 };
+}
+
+export async function notifyExpiringUsers(): Promise<{ sent: number; failed: number }> {
+  const cfg = getBotConfig();
+  if (!cfg.enabled || !cfg.token) return { sent: 0, failed: 0 };
+  const now = Date.now();
+  const users = listUsers().filter((u) =>
+    Boolean(u.telegram_id) && Boolean(u.enabled) && u.expire_at !== null &&
+    u.expire_at > now && u.expire_at - now <= 72 * 60 * 60 * 1000
+  );
+  let sent = 0, failed = 0;
+  for (const user of users) {
+    const kind = user.expire_at! - now <= 24 * 60 * 60 * 1000 ? "expiry_24h" : "expiry_72h";
+    const already = db.prepare("SELECT 1 FROM notification_log WHERE user_id=? AND kind=? AND target_at=?").get(user.id, kind, user.expire_at!);
+    if (already) continue;
+    try {
+      const result = await apiCall(cfg.token, "sendMessage", {
+        chat_id: user.telegram_id,
+        text: `⚠️ <b>یادآوری انقضای اشتراک POMP NET</b>\\nاشتراک <code>${escapeHtml(user.email)}</code> به‌زودی منقضی می‌شود.\\nبرای تمدید با پشتیبانی تماس بگیرید.`,
+        parse_mode: "HTML",
+      });
+      if (result.ok) {
+        sent++;
+        db.prepare("INSERT OR IGNORE INTO notification_log (user_id, kind, target_at, sent_at) VALUES (?, ?, ?, ?)")
+          .run(user.id, kind, user.expire_at!, Date.now());
+      } else failed++;
+    } catch { failed++; }
+    await sleep(40);
+  }
+  return { sent, failed };
+}
+
 export async function sendDailyBackup(): Promise<void> {
   const cfg = getBotConfig();
   if (!cfg.enabled || !cfg.token || cfg.chatIds.length === 0 || !cfg.dailyBackup) return;
@@ -273,6 +328,23 @@ async function handleTelegramMessage(token: string, update: TelegramUpdate): Pro
 
   if (command === "/myid") {
     await sendTelegramText(token, chatId, `🆔 شناسه تلگرام شما: <code>${telegramId}</code>`);
+    return;
+  }
+
+  if (command === "/support") {
+    const firstMessage = raw.replace(/^\/support(?:@\w+)?\s*/i, "").trim();
+    if (!firstMessage) {
+      await sendTelegramText(token, chatId, "برای ثبت تیکت، پیام خود را بعد از دستور وارد کنید:\n<code>/support متن درخواست شما</code>");
+      return;
+    }
+    const linked = listUsers().find((u) => u.telegram_id === telegramId);
+    const now = Date.now();
+    const info = db.prepare("INSERT INTO support_tickets (user_id, telegram_id, subject, status, priority, created_at, updated_at) VALUES (?, ?, ?, 'open', 'normal', ?, ?)")
+      .run(linked?.id ?? null, telegramId, firstMessage.slice(0, 120), now, now);
+    const ticketId = Number(info.lastInsertRowid);
+    db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'user', ?, ?, ?)")
+      .run(ticketId, telegramId, firstMessage, now);
+    await sendTelegramText(token, chatId, `✅ درخواست شما ثبت شد.\nشماره تیکت: <code>#${ticketId}</code>\nپاسخ پشتیبانی از همین ربات ارسال می‌شود.`);
     return;
   }
 

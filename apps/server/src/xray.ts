@@ -12,15 +12,17 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import https from "node:https";
+import net from "node:net";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { config } from "./config.js";
 import { buildXrayConfig } from "./xray-config.js";
 import { db } from "./db.js";
-import { realIpForPort } from "./tunnel.js";
+import { realIpForPort, beginTunnelMaintenance, endTunnelMaintenance } from "./tunnel.js";
 
 let proc: ChildProcess | null = null;
 let running = false;
+let xrayReady = false;
 
 function binName(): string {
   return config.platform === "win32" ? "xray.exe" : "xray";
@@ -108,24 +110,112 @@ export function xrayUptime(): number {
 export async function startXray(): Promise<void> {
   const ok = await ensureBinary();
   if (!ok) {
-    running = false;
+    console.error("[POMP NET Xray] Core binary is unavailable.");
     return;
   }
   const cfgFile = writeConfig();
+  const validation = spawnSync(binPath(), ["run", "-test", "-config", cfgFile], {
+    cwd: config.xrayDir,
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  if (validation.status !== 0) {
+    console.error("[POMP NET Xray] Config validation failed:", validation.stderr || validation.stdout || validation.error);
+    return;
+  }
+  const previous = proc;
+  xrayReady = false;
+  running = false;
   stopXray();
+  if (previous && previous.exitCode === null) {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 3000);
+      previous.once("exit", () => { clearTimeout(timer); resolve(); });
+    });
+    if (previous.exitCode === null && previous.pid) {
+      try { previous.kill("SIGKILL"); } catch { /* noop */ }
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(resolve, 1000);
+        previous.once("exit", () => { clearTimeout(timer); resolve(); });
+      });
+    }
+  }
   const child = spawn(binPath(), ["run", "-config", cfgFile], {
     cwd: config.xrayDir,
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
   });
   proc = child;
-  running = true;
-  xrayStartedAt = Date.now();
-  child.on("exit", () => {
+  let diagnostic = "";
+  const capture = (chunk: Buffer) => {
+    diagnostic = (diagnostic + chunk.toString("utf8")).slice(-8000);
+  };
+  child.stdout?.on("data", (chunk: Buffer) => {
+    capture(chunk);
+    if (process.env.POMP_TUNNEL_DEBUG === "1") {
+      for (const line of chunk.toString("utf8").split(/\\r?\\n/).filter(Boolean)) {
+        console.log("[POMP Xray stdout]", line);
+      }
+    }
+  });
+  child.stderr?.on("data", (chunk: Buffer) => {
+    capture(chunk);
+    if (process.env.POMP_TUNNEL_DEBUG === "1") {
+      for (const line of chunk.toString("utf8").split(/\\r?\\n/).filter(Boolean)) {
+        console.error("[POMP Xray stderr]", line);
+      }
+    }
+  });
+  child.on("exit", (code, signal) => {
     if (proc === child) {
       proc = null;
       running = false;
+      xrayReady = false;
+      if (code !== 0) console.error("[POMP NET Xray] Core exited:", { code, signal, diagnostic });
     }
   });
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", () => resolve());
+    child.once("error", reject);
+  }).catch((error) => {
+    if (proc === child) proc = null;
+    console.error("[POMP NET Xray] Failed to spawn core:", error);
+  });
+  if (proc !== child || child.exitCode !== null) return;
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  if (proc !== child || child.exitCode !== null) {
+    console.error("[POMP NET Xray] Core exited during startup:", diagnostic);
+    return;
+  }
+  const parsedConfig = JSON.parse(fs.readFileSync(cfgFile, "utf8")) as {
+    inbounds?: Array<{ tag?: string; port?: number; protocol?: string }>;
+  };
+  const readinessInbound = parsedConfig.inbounds?.find((item) =>
+    item.tag !== "api" && item.port && !["wireguard", "hysteria2", "tuic"].includes(item.protocol || ""),
+  );
+  if (readinessInbound?.port) {
+    const deadline = Date.now() + 5000;
+    let listening = false;
+    while (Date.now() < deadline && proc === child && child.exitCode === null) {
+      listening = await new Promise<boolean>((resolve) => {
+        const socket = net.createConnection({ host: "127.0.0.1", port: readinessInbound.port! });
+        socket.setTimeout(350);
+        socket.once("connect", () => { socket.destroy(); resolve(true); });
+        socket.once("error", () => resolve(false));
+        socket.once("timeout", () => { socket.destroy(); resolve(false); });
+      });
+      if (listening) break;
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    if (!listening) {
+      console.error("[POMP NET Xray] Core process is alive but no TCP inbound became ready:", readinessInbound.port, diagnostic);
+      stopXray();
+      return;
+    }
+  }
+  if (proc !== child || child.exitCode !== null) return;
+  running = true;
+  xrayReady = true;
+  xrayStartedAt = Date.now();
 }
 
 export function stopXray(): void {
@@ -138,6 +228,7 @@ export function stopXray(): void {
     proc = null;
   }
   running = false;
+  xrayReady = false;
 }
 
 let restartTimer: NodeJS.Timeout | null = null;
@@ -146,18 +237,27 @@ export function restartXray(): void {
   if (restartTimer) clearTimeout(restartTimer);
   restartTimer = setTimeout(() => {
     restartTimer = null;
-    // flush pending traffic counters before the process is replaced
-    try {
-      collectTraffic();
-    } catch {
-      /* noop */
-    }
-    void startXray();
+    // New WebSocket handshakes are paused while existing VPN sessions drain.
+    // The engine is never killed underneath an established client tunnel.
+    beginTunnelMaintenance(() => {
+      try {
+        collectTraffic();
+      } catch {
+        /* noop */
+      }
+      void startXray().finally(() => endTunnelMaintenance());
+    });
   }, 800);
 }
 
 export function isRunning(): boolean {
-  return running && proc != null && proc.exitCode == null && !proc.killed;
+  if (!xrayReady || !running || !proc || proc.exitCode !== null || proc.killed || !proc.pid) return false;
+  try {
+    process.kill(proc.pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function xrayVersion(): string {

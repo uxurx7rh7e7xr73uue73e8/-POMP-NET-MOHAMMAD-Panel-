@@ -11,6 +11,12 @@ interface AdminBackup {
   created_at: number;
 }
 
+interface NodeBackup {
+  id: number; name: string; endpoint: string; token_hash: string; inbound_ids: string; enabled: number;
+  status: string; last_seen: number | null; agent_version: string; xray_version: string; platform: string;
+  arch: string; config_hash: string; last_error: string; created_at: number; updated_at: number;
+}
+
 interface BackupPayload {
   version: number;
   exported_at: number;
@@ -19,6 +25,7 @@ interface BackupPayload {
   inbounds: Inbound[];
   admins?: AdminBackup[];
   settings?: { key: string; value: string }[];
+  nodes?: NodeBackup[];
 }
 
 export function exportData(): BackupPayload {
@@ -29,30 +36,32 @@ export function exportData(): BackupPayload {
     inbound_id: number;
   }[];
   const admins = db.prepare("SELECT * FROM admins").all() as unknown as AdminBackup[];
+  const nodes = db.prepare("SELECT * FROM managed_nodes").all() as unknown as NodeBackup[];
   const settings = db.prepare("SELECT key, value FROM settings").all() as unknown as {
     key: string;
     value: string;
   }[];
   return {
-    version: 2,
+    version: 3,
     exported_at: Date.now(),
     users,
     inbounds,
     user_inbounds: links,
     admins,
     settings,
+    nodes,
   };
 }
 
 export function importData(payload: BackupPayload): { users: number; inbounds: number } {
-  if (!payload || (payload.version !== 1 && payload.version !== 2))
+  if (!payload || (payload.version !== 1 && payload.version !== 2 && payload.version !== 3))
     throw new Error("invalid backup version");
   const tx = () => {
     db.exec("DELETE FROM user_inbounds; DELETE FROM users; DELETE FROM inbounds;");
 
     const insInbound = db.prepare(
-      `INSERT INTO inbounds (id, tag, protocol, transport, port, path, host, enabled, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO inbounds (id, tag, protocol, transport, port, path, host, enabled, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const ib of payload.inbounds) {
       insInbound.run(
@@ -65,6 +74,7 @@ export function importData(payload: BackupPayload): { users: number; inbounds: n
         ib.host,
         ib.enabled,
         ib.created_at,
+        ib.expires_at ?? null,
       );
     }
 
@@ -123,6 +133,21 @@ export function importData(payload: BackupPayload): { users: number; inbounds: n
           a.data_limit || 0,
           a.created_at,
         );
+      }
+    }
+
+    // Version 3 backups preserve node registrations. Only hashes are stored;
+    // raw node bearer tokens are never exportable from the controller.
+    if (payload.nodes) {
+      db.exec("DELETE FROM managed_nodes");
+      const insNode = db.prepare(`INSERT INTO managed_nodes
+        (id, name, endpoint, token_hash, inbound_ids, enabled, status, last_seen, agent_version,
+         xray_version, platform, arch, config_hash, last_error, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (const node of payload.nodes) {
+        insNode.run(node.id, node.name, node.endpoint, node.token_hash, node.inbound_ids, node.enabled,
+          node.status, node.last_seen, node.agent_version, node.xray_version, node.platform, node.arch,
+          node.config_hash, node.last_error, node.created_at, node.updated_at);
       }
     }
 

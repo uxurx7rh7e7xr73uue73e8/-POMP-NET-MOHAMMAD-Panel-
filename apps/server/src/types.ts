@@ -1,4 +1,4 @@
-export type Protocol = "vless" | "vmess" | "trojan";
+export type Protocol = "vless" | "vmess" | "trojan" | "wireguard" | "socks" | "http" | "hysteria2" | "tuic";
 export type Transport = "ws" | "xhttp" | "httpupgrade";
 export type TrafficReset = "never" | "daily" | "weekly" | "monthly";
 
@@ -12,6 +12,7 @@ export interface Inbound {
   host: string;
   enabled: number;
   created_at: number;
+  expires_at: number | null;
 }
 
 export interface UserRecord {

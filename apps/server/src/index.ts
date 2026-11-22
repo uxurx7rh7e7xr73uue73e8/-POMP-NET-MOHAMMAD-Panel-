@@ -16,16 +16,16 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
-import { seedInbounds } from "./inbounds.js";
-import { seedDefaultClient } from "./users.js";
+import { seedInbounds, expireInbounds, listEnabledInbounds } from "./inbounds.js";
+import { seedDefaultClient, listUsers, isUserActive } from "./users.js";
 import { seedDefaultRouting } from "./routing.js";
 import { api } from "./routes.js";
 import { sub, setSubStaticRoot } from "./sub.js";
 import { attachTunnel, tryTunnelHttp } from "./tunnel.js";
-import { startXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
+import { startXray, restartXray, collectTraffic, collectClientIps, enforceIpLimits, isRunning, xrayVersion } from "./xray.js";
 import { applyTrafficReset } from "./users.js";
 import { rateLimit } from "./ratelimit.js";
-import { sendDailyBackup, startTelegramBot } from "./bot.js";
+import { sendDailyBackup, startTelegramBot, notifyExpiringUsers } from "./bot.js";
 import { refreshIpInfo } from "./ipinfo.js";
 import { SIDERAIL_SIGNATURE, watermark } from "./brand.js";
 
@@ -113,6 +113,40 @@ setInterval(() => {
   }
 }, 20_000);
 
+function engineConfigState(): string {
+  const inbounds = listEnabledInbounds().map((ib) => ({
+    id: ib.id, protocol: ib.protocol, transport: ib.transport, port: ib.port, path: ib.path, host: ib.host,
+  }));
+  const users = listUsers().map((user) => ({
+    id: user.id, email: user.email, uuid: user.uuid, password: user.password,
+    enabled: user.enabled, active: isUserActive(user), inbound_ids: user.inbound_ids,
+    fingerprint: user.fingerprint, alpn: user.alpn,
+  }));
+  return JSON.stringify({ inbounds, users });
+}
+
+let lastEngineConfigState = engineConfigState();
+setInterval(() => {
+  try {
+    const nextState = engineConfigState();
+    if (nextState !== lastEngineConfigState) {
+      lastEngineConfigState = nextState;
+      console.log("[POMP NET] Active user/inbound configuration changed; reloading Xray.");
+      restartXray();
+    }
+  } catch (error) {
+    console.error("[POMP NET engine config monitor]", error);
+  }
+}, 20_000);
+
+setInterval(() => {
+  try {
+    if (expireInbounds() > 0) restartXray();
+  } catch (error) {
+    console.error("[POMP NET inbound expiry]", error);
+  }
+}, 60_000);
+
 setInterval(() => {
   try {
     applyTrafficReset();
@@ -120,6 +154,11 @@ setInterval(() => {
     /* noop */
   }
 }, 3_600_000);
+
+// Send expiry reminders once per threshold; notification_log prevents duplicate delivery.
+setInterval(() => {
+  void notifyExpiringUsers().catch((error) => console.error("[POMP NET expiry notifications]", error));
+}, 60 * 60 * 1000);
 
 let lastBackupDay = new Date().getDate();
 setInterval(() => {

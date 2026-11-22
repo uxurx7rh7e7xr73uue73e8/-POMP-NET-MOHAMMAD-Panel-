@@ -13,6 +13,7 @@ import { listEnabledInbounds } from "./inbounds.js";
 import { listUsers, isUserActive } from "./users.js";
 import { listRoutingRules } from "./routing.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
+import { isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 function streamSettings(inbound: Inbound) {
   const base: Record<string, unknown> = { network: inbound.transport };
@@ -75,16 +76,26 @@ function buildRoutingRules(inbounds: Inbound[]) {
     else base.domain = values;
     rules.push(base);
   }
+
+  // The game profile uses its own direct freedom outbound with TCP Fast Open.
+  // It can reduce connection setup overhead on compatible kernels, but cannot
+  // guarantee a lower geographic/network RTT.
+  const gameTags = inbounds.filter((i) => i.tag.startsWith("POMP-GAME-")).map((i) => i.tag);
+  if (gameTags.length) {
+    rules.push({ type: "field", inboundTag: gameTags, outboundTag: "game-direct" });
+  }
   return rules;
 }
 
-export function buildXrayConfig() {
-  const inbounds = listEnabledInbounds();
+export function buildXrayConfig(options: { remoteNode?: boolean; inboundIds?: number[] } = {}) {
+  const inbounds = listEnabledInbounds()
+    .filter((inbound) => options.inboundIds === undefined || options.inboundIds.includes(inbound.id))
+    .filter((inbound) => options.remoteNode || isPubliclyReachableInbound(inbound));
   const users = listUsers();
 
   const inboundConfigs = inbounds.map((ib) => ({
     tag: ib.tag,
-    listen: "127.0.0.1",
+    listen: options.remoteNode ? "0.0.0.0" : "127.0.0.1",
     port: ib.port,
     protocol: ib.protocol,
     settings: protocolSettings(ib, users),
@@ -118,6 +129,12 @@ export function buildXrayConfig() {
     ],
     outbounds: [
       { tag: "direct", protocol: "freedom", settings: {} },
+      {
+        tag: "game-direct",
+        protocol: "freedom",
+        settings: {},
+        streamSettings: { sockopt: { tcpFastOpen: true, tcpNoDelay: true } },
+      },
       { tag: "blocked", protocol: "blackhole", settings: {} },
     ],
     routing: {

@@ -60,6 +60,15 @@ export function migrate(): void {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS wireguard_peers (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      private_key TEXT NOT NULL,
+      public_key TEXT NOT NULL,
+      preshared_key TEXT NOT NULL,
+      address TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS user_inbounds (
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       inbound_id INTEGER NOT NULL REFERENCES inbounds(id) ON DELETE CASCADE,
@@ -108,12 +117,77 @@ export function migrate(): void {
       down INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS renewal_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      days INTEGER NOT NULL,
+      previous_expire_at INTEGER,
+      new_expire_at INTEGER,
+      actor TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      telegram_id TEXT NOT NULL DEFAULT '',
+      subject TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open',
+      priority TEXT NOT NULL DEFAULT 'normal',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS support_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id INTEGER NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+      sender_type TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS managed_nodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      endpoint TEXT NOT NULL DEFAULT '',
+      token_hash TEXT NOT NULL UNIQUE,
+      inbound_ids TEXT NOT NULL DEFAULT '[]',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'pending',
+      last_seen INTEGER,
+      agent_version TEXT NOT NULL DEFAULT '',
+      xray_version TEXT NOT NULL DEFAULT '',
+      platform TEXT NOT NULL DEFAULT '',
+      arch TEXT NOT NULL DEFAULT '',
+      config_hash TEXT NOT NULL DEFAULT '',
+      last_error TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS notification_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,
+      target_at INTEGER NOT NULL,
+      sent_at INTEGER NOT NULL,
+      UNIQUE(user_id, kind, target_at)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_activity_ts ON activity(ts DESC);
+    CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_renewal_user ON renewal_history(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_users_token ON users(sub_token);
     CREATE INDEX IF NOT EXISTS idx_usage_user_ts ON usage_history(user_id, ts);
     CREATE INDEX IF NOT EXISTS idx_server_traffic_ts ON server_traffic(ts DESC);
   `);
   migrateColumns();
+  const inboundCols = db.prepare("PRAGMA table_info(inbounds)").all() as { name: string }[];
+  if (!inboundCols.some((c) => c.name === "expires_at")) {
+    db.exec("ALTER TABLE inbounds ADD COLUMN expires_at INTEGER");
+  }
 }
 
 function migrateColumns(): void {

@@ -1,12 +1,11 @@
 import * as React from "react";
-import { Github, Star, Tag, Languages, Send } from "lucide-react";
+import { Github, Star, Tag, Languages, Send, CalendarDays, Clock3, ShieldCheck } from "lucide-react";
 import { RailLogo } from "@/components/rail-logo";
 import { useGitHubStars } from "@/components/github-button";
 import { useToast } from "@/components/ui/toast";
 import { useI18n, LANGUAGES, type Lang } from "@/lib/i18n";
 import { GITHUB_URL, GITHUB_REPO, TELEGRAM_URL, PANEL_VERSION } from "@/lib/brand";
 import { cn } from "@/lib/utils";
-import { BrandSignature } from "@/components/brand-signature";
 
 /**
  * A bold, modern shell for the Setup and Login pages. A split layout: a loud
@@ -28,6 +27,13 @@ export function AuthShell({
   const { lang, setLang, t } = useI18n();
   const toast = useToast();
   const stars = useGitHubStars();
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const tehranDate = now.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });
+  const tehranTime = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const changeLang = (l: Lang) => {
     if (l === lang) return;
@@ -36,7 +42,7 @@ export function AuthShell({
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-bg">
+    <div dir="rtl" className="pn-auth relative min-h-screen overflow-hidden bg-bg">
       {/* animated blobs + grid */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-0 grid-dots opacity-50" />
@@ -45,61 +51,65 @@ export function AuthShell({
         <div className="absolute bottom-[-10%] left-1/3 h-80 w-80 rounded-full bg-blue-500/20 blur-[110px] animate-[drift3_36s_ease-in-out_infinite]" />
       </div>
 
-      <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-4 p-4 lg:p-8">
-        <BrandSignature />
-        <div className="grid w-full overflow-hidden rounded-base border-2 border-border neo-shadow lg:grid-cols-[1.05fr_1fr]">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-4 p-4 sm:p-6 lg:p-8">
+        <div className="pn-auth-topbar flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-400/25 bg-[#0d0a19]/90 px-4 py-3 shadow-[0_0_28px_rgba(139,53,255,.12)]">
+          <div className="flex items-center gap-2 text-sm font-bold text-white"><span className="grid h-9 w-9 place-items-center rounded-full border border-violet-400/40 bg-violet-500/15 text-violet-200"><RailLogo className="h-6 w-6" /></span><span>POMP NET MOHAMMAD <small className="block text-[10px] font-normal tracking-[.18em] text-violet-300">SELFVERSE</small></span></div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-white/75"><span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-cyan-300"/>{tehranDate}</span><span className="hidden h-4 w-px bg-white/15 sm:block"/><span className="flex items-center gap-1.5" dir="ltr"><Clock3 className="h-4 w-4 text-violet-300"/>{tehranTime}<span className="text-[10px] text-white/40">UTC+03:30</span></span><span className="hidden items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-300 sm:flex"><ShieldCheck className="h-3.5 w-3.5"/>ورود با احراز هویت واقعی</span></div>
+        </div>
+        <div className="pn-auth-frame grid w-full overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_100px_rgba(0,0,0,.55)] lg:grid-cols-[1.05fr_1fr]">
           {/* Brand / hero panel */}
-          <div className="relative hidden flex-col justify-between overflow-hidden bg-main p-10 text-mtext lg:flex">
-            <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:repeating-linear-gradient(45deg,transparent,transparent_14px,rgba(0,0,0,.4)_14px,rgba(0,0,0,.4)_15px)]" />
+          <div className="pn-auth-hero relative hidden min-h-[620px] flex-col justify-between overflow-hidden p-10 text-white lg:flex">
+            <div className="pointer-events-none absolute inset-0 opacity-30 [background-image:radial-gradient(rgba(168,110,255,.28)_1px,transparent_1px)] [background-size:24px_24px]" />
             <div className="relative flex items-center gap-3">
-              <div className="grid h-14 w-14 place-items-center rounded-base border-2 border-border bg-bw text-main neo-shadow animate-float">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/15 bg-white/10 text-white shadow-[0_0_35px_rgba(139,53,255,.35)] backdrop-blur-xl animate-float">
                 <RailLogo className="h-8 w-8" />
               </div>
               <div>
-                <div className="font-heading text-3xl leading-none tracking-tight">POMP NET MOHAMMAD</div>
-                <div className="mt-1 text-sm font-base text-mtext/70">
-                  QUANTUM NEXUS · Xray Management
+                <div className="font-heading text-2xl font-black leading-none tracking-tight xl:text-3xl">POMP NET MOHAMMAD</div>
+                <div className="mt-2 text-sm font-base text-white/65">
+                  SELFVERSE · Xray Management
                 </div>
               </div>
             </div>
 
-            <div className="relative space-y-4">
-              <h2 className="max-w-[16ch] font-heading text-3xl leading-tight">{heading}</h2>
-              <p className="max-w-[34ch] font-base text-mtext/80">{sub}</p>
+            <div className="relative space-y-5">
+              <div className="mb-3 h-px w-36 bg-gradient-to-l from-[#168cff] via-[#8b35ff] to-transparent shadow-[0_0_12px_rgba(139,53,255,.7)]" />
+              <h2 className="max-w-[16ch] font-heading text-4xl leading-[1.2] xl:text-5xl">{heading}</h2>
+              <p className="max-w-[34ch] font-base text-base leading-8 text-white/70">{sub}</p>
               {highlights && (
-                <ul className="space-y-2.5 pt-2">
+                <ul className="space-y-3 pt-3">
                   {highlights.map((h, i) => (
                     <li
                       key={h.text}
                       className="flex items-center gap-3 animate-slide-up"
                       style={{ animationDelay: `${120 + i * 90}ms` }}
                     >
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-base border-2 border-border bg-bw text-main">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/10 text-[#b78cff]">
                         <h.icon className="h-4 w-4" />
                       </span>
-                      <span className="font-base text-mtext/90">{h.text}</span>
+                      <span className="font-base text-sm text-white/85">{h.text}</span>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
 
-            <div className="relative text-xs font-heading uppercase tracking-widest text-mtext/50">
-              POMP NET MOHAMMAD · QUANTUM NEXUS
+            <div className="relative border-t border-white/10 pt-5 text-[10px] font-heading uppercase tracking-[.28em] text-white/40">
+              POMP NET MOHAMMAD · SELFVERSE
             </div>
           </div>
 
           {/* Form panel */}
-          <div className="flex flex-col justify-center gap-6 bg-bw/85 p-6 backdrop-blur-xl sm:p-10">
+          <div className="pn-auth-form flex flex-col justify-center gap-6 p-6 sm:p-10 lg:p-12">
             <div className="animate-slide-up">
               <div className="mb-5 flex items-center gap-3 lg:hidden">
-                <div className="grid h-12 w-12 place-items-center rounded-base border-2 border-border bg-main text-mtext neo-shadow animate-float">
+                <div className="grid h-12 w-12 place-items-center rounded-2xl border border-white/15 bg-gradient-to-br from-[#8b35ff] to-[#168cff] text-white shadow-[0_0_28px_rgba(139,53,255,.35)] animate-float">
                   <RailLogo className="h-7 w-7" />
                 </div>
-                <div className="font-heading text-xl tracking-tight">POMP NET MOHAMMAD</div>
+                <div className="font-heading text-xl tracking-tight text-white">POMP NET MOHAMMAD</div>
               </div>
-              <h1 className="font-heading text-3xl tracking-tight">{heading}</h1>
-              <p className="mt-1 text-sm font-base text-text/60">{sub}</p>
+              <h1 className="font-heading text-3xl tracking-tight text-white">{heading}</h1>
+              <p className="mt-2 text-sm font-base leading-7 text-white/55">{sub}</p>
             </div>
 
             <div className="animate-slide-up" style={{ animationDelay: "80ms" }}>
@@ -112,7 +122,7 @@ export function AuthShell({
                   href={GITHUB_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-between gap-2 rounded-base border-2 border-border bg-bw px-3 py-2 font-heading text-xs text-text/80 transition-all hover:-translate-y-0.5 hover:bg-main hover:text-mtext hover:neo-shadow"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 py-3 font-heading text-xs text-white/75 transition-all hover:-translate-y-0.5 hover:border-[#8b35ff]/50 hover:bg-[#8b35ff]/10 hover:text-white"
                 >
                   <span className="flex min-w-0 items-center gap-1.5">
                     <Github className="h-4 w-4 shrink-0" />
@@ -127,7 +137,7 @@ export function AuthShell({
                   href={TELEGRAM_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center gap-1.5 rounded-base border-2 border-border bg-bw px-3 py-2 font-heading text-xs text-text/80 transition-all hover:-translate-y-0.5 hover:bg-main hover:text-mtext hover:neo-shadow"
+                  className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[.04] px-3 py-3 font-heading text-xs text-white/75 transition-all hover:-translate-y-0.5 hover:border-[#8b35ff]/50 hover:bg-[#8b35ff]/10 hover:text-white"
                 >
                   <Send className="h-4 w-4 shrink-0" />
                   <span className="truncate">Telegram</span>
@@ -136,14 +146,14 @@ export function AuthShell({
                   href={`${GITHUB_URL}/releases`}
                   target="_blank"
                   rel="noreferrer"
-                  className="col-span-2 flex items-center justify-center gap-1.5 rounded-base border-2 border-border bg-bw px-3 py-2 font-heading text-xs text-text/80 transition-all hover:-translate-y-0.5 hover:bg-main hover:text-mtext hover:neo-shadow"
+                  className="col-span-2 flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[.04] px-3 py-3 font-heading text-xs text-white/75 transition-all hover:-translate-y-0.5 hover:border-[#8b35ff]/50 hover:bg-[#8b35ff]/10 hover:text-white"
                 >
                   <Tag className="h-4 w-4 shrink-0" />
                   <span className="truncate">v{PANEL_VERSION}</span>
                 </a>
               </div>
 
-              <div className="flex items-center gap-1 rounded-base border-2 border-border bg-bw p-1">
+              <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[.04] p-1">
                 <Languages className="ml-1 h-4 w-4 shrink-0 text-text/50" />
                 {LANGUAGES.map((l) => (
                   <button
@@ -151,8 +161,8 @@ export function AuthShell({
                     type="button"
                     onClick={() => changeLang(l.code)}
                     className={cn(
-                      "flex-1 rounded-[4px] px-1 py-1.5 text-xs font-heading transition-colors",
-                      lang === l.code ? "bg-main text-mtext" : "hover:bg-main/15",
+                      "flex-1 rounded-lg px-1 py-2 text-xs font-heading text-white/65 transition-colors",
+                      lang === l.code ? "bg-[#8b35ff] text-white shadow-[0_0_18px_rgba(139,53,255,.3)]" : "hover:bg-white/10 hover:text-white",
                     )}
                   >
                     {l.label}

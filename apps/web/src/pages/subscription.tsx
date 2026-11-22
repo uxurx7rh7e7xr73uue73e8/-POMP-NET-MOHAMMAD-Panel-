@@ -22,6 +22,8 @@ import {
   CircleAlert,
   Wifi,
   WifiOff,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { QrCode } from "@/components/qr-code";
 import { RailLogo } from "@/components/rail-logo";
@@ -110,6 +112,13 @@ export default function SubscriptionPage() {
   const { data, isLoading, isError } = useSubData(token);
   const [qrConfig, setQrConfig] = React.useState<SubLink | null>(null);
   const [subQrOpen, setSubQrOpen] = React.useState(false);
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const tehranDate = now.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });
+  const tehranTime = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const subUrl = `${window.location.origin}/sub/${token}`;
 
@@ -146,18 +155,22 @@ export default function SubscriptionPage() {
   const chart = buildChart(sub.history || []);
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-bg pb-16">
+    <div className="pn-sub-page relative min-h-screen overflow-x-hidden bg-bg pb-16" dir="rtl">
       <AnimatedBackground />
 
-      <div className="relative mx-auto w-full min-w-0 max-w-3xl px-4 pt-6 sm:pt-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative mx-auto w-full min-w-0 max-w-4xl px-4 pt-5 sm:pt-8">
+        <div className="pn-sub-topbar mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-violet-400/25 bg-[#0d0a19]/90 px-4 py-3 text-xs text-white/75 shadow-[0_0_26px_rgba(139,53,255,.10)]">
+          <span className="flex items-center gap-2 font-bold text-white"><RailLogo className="h-5 w-5 text-violet-300"/> POMP NET MOHAMMAD <span className="text-[10px] font-normal tracking-widest text-violet-300">SELFVERSE</span></span>
+          <span className="flex flex-wrap items-center gap-3"><span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-cyan-300"/>{tehranDate}</span><span className="flex items-center gap-1.5" dir="ltr"><Clock3 className="h-3.5 w-3.5 text-violet-300"/>{tehranTime}</span></span>
+        </div>
+        <header className="pn-sub-header flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-base border-2 border-border bg-main text-mtext neo-shadow">
               <RailLogo className="h-7 w-7" />
             </div>
             <div className="min-w-0">
               <div className="font-heading text-xl leading-tight sm:text-2xl">POMP NET MOHAMMAD</div>
-              <div className="text-[10px] font-heading uppercase tracking-[.22em] text-main">QUANTUM NEXUS · SECURE SUBSCRIPTION</div>
+              <div className="text-[10px] font-heading uppercase tracking-[.22em] text-main">SELFVERSE · SECURE SUBSCRIPTION</div>
               <div className="truncate text-sm font-base text-text/60">{user.email}</div>
             </div>
           </div>
@@ -182,7 +195,7 @@ export default function SubscriptionPage() {
           </div>
         </header>
 
-        <Card className="mt-6 animate-pop-in">
+        <Card className="pn-sub-overview mt-6 animate-pop-in">
           <CardContent className="space-y-5 p-5 sm:p-6">
             <div>
               <div className="flex items-baseline justify-between gap-2">
@@ -286,7 +299,7 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
 
-        <div className="mt-4 space-y-2">
+        <div className="pn-sub-links mt-4 space-y-2">
           <div className="flex min-w-0 items-center gap-2 rounded-base border-2 border-border bg-bw px-3 py-2 neo-shadow">
             <Link2 className="h-4 w-4 shrink-0 text-text/50" />
             <span className="truncate font-mono text-xs text-text/80">{subUrl}</span>
@@ -301,12 +314,11 @@ export default function SubscriptionPage() {
           <div className="grid grid-cols-3 gap-2">
             <CopyButton value={subUrl} label="V2ray" className="w-full" />
             <CopyButton value={`${subUrl}/clash`} label="Clash" className="w-full" />
-            <CopyButton value={`${subUrl}/singbox`} label="Sing-box" className="w-full" />
           </div>
           <p className="text-center text-[11px] font-base text-text/40">{t("copyHint")}</p>
         </div>
 
-        <div className="mt-8">
+        <div className="pn-sub-configs mt-8">
           <h2 className="mb-3 font-heading text-lg">{t("configurations")}</h2>
           <div className="grid gap-3">
             {links.map((link, i) => (

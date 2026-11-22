@@ -9,6 +9,9 @@
  * Watermark: sr-icubaby-2025-9f4c1a7e
  */
 import { Router } from "express";
+import { createHash, randomBytes } from "node:crypto";
+import { getRuntimeCapabilities } from "./railway-capabilities.js";
+import { buildXrayConfig } from "./xray-config.js";
 import { z } from "zod";
 import {
   isSetupDone,
@@ -29,7 +32,7 @@ import {
 } from "./auth.js";
 import { db, getSetting, setSetting } from "./db.js";
 import { getSystemStats } from "./system.js";
-import { listInbounds, setInboundEnabled, getInbound } from "./inbounds.js";
+import { listInbounds, setInboundEnabled, getInbound, createInbound, deleteInbound, renewInbound } from "./inbounds.js";
 import {
   listUsers,
   createUser,
@@ -52,9 +55,11 @@ import {
   deleteRoutingRule,
 } from "./routing.js";
 import { DOMAIN_PRESETS, COUNTRY_IP_PRESETS } from "./routing-presets.js";
-import { getBotConfig, saveBotConfig, testBot } from "./bot.js";
+import { getBotConfig, saveBotConfig, testBot, sendBroadcastToLinkedUsers, sendTelegramToChat } from "./bot.js";
 
 export const api = Router();
+
+function restartTunnelEngines(): void { restartXray(); }
 
 const trafficReset = z.enum(["never", "daily", "weekly", "monthly"]);
 const permissionEnum = z.enum([
@@ -92,6 +97,10 @@ function setAuthCookie(res: import("express").Response, token: string): void {
     maxAge: 7 * 86_400_000,
   });
 }
+
+api.get("/capabilities", (_req, res) => {
+  res.json({ ...getRuntimeCapabilities() });
+});
 
 api.get("/status", (_req, res) => {
   res.json({ setup: isSetupDone(), name: "POMP NET MOHAMMAD — QUANTUM NEXUS" });
@@ -140,6 +149,53 @@ api.post("/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
+function nodeTokenHash(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function authenticateNode(req: import("express").Request, res: import("express").Response): { id: number; inbound_ids: number[] } | null {
+  const token = req.header("authorization")?.replace(/^Bearer\s+/i, "") || "";
+  if (!token || token.length < 40) { res.status(401).json({ error: "node authentication required" }); return null; }
+  const hash = nodeTokenHash(token);
+  const row = db.prepare("SELECT id, inbound_ids, enabled FROM managed_nodes WHERE token_hash = ?").get(hash) as
+    { id: number; inbound_ids: string; enabled: number } | undefined;
+  if (!row || !row.enabled) { res.status(401).json({ error: "invalid or disabled node token" }); return null; }
+  let inboundIds: number[] = [];
+  try { inboundIds = JSON.parse(row.inbound_ids) as number[]; } catch { inboundIds = []; }
+  return { id: row.id, inbound_ids: inboundIds };
+}
+
+// Machine-to-machine endpoints use per-node bearer tokens, never the owner session cookie.
+api.post("/node-agent/heartbeat", (req, res) => {
+  const node = authenticateNode(req, res);
+  if (!node) return;
+  const body = z.object({
+    agentVersion: z.string().max(64).optional().default(""),
+    xrayVersion: z.string().max(64).optional().default(""),
+    platform: z.string().max(64).optional().default(""),
+    arch: z.string().max(64).optional().default(""),
+    configHash: z.string().max(128).optional().default(""),
+    error: z.string().max(1000).optional().default(""),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid heartbeat" }); return; }
+  db.prepare("UPDATE managed_nodes SET status = ?, last_seen = ?, agent_version = ?, xray_version = ?, platform = ?, arch = ?, config_hash = ?, last_error = ?, updated_at = ? WHERE id = ?")
+    .run(body.data.error ? "error" : "online", Date.now(), body.data.agentVersion, body.data.xrayVersion, body.data.platform, body.data.arch, body.data.configHash, body.data.error, Date.now(), node.id);
+  res.json({ ok: true, serverTime: Date.now(), configHash: body.data.configHash });
+});
+
+api.get("/node-agent/config", (req, res) => {
+  const node = authenticateNode(req, res);
+  if (!node) return;
+  const inboundIds = node.inbound_ids.length ? node.inbound_ids : undefined;
+  const cfg = buildXrayConfig({ remoteNode: true, inboundIds }) as Record<string, any>;
+  cfg.log = { ...(cfg.log || {}), loglevel: "warning", access: "access.log", error: "error.log" };
+  cfg.inbounds = (cfg.inbounds as Record<string, any>[]).map((inbound) =>
+    inbound.tag === "api" ? inbound : { ...inbound, listen: "0.0.0.0" });
+  const serialized = JSON.stringify({ config: cfg });
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ config: cfg, configHash: createHash("sha256").update(serialized).digest("hex"), generatedAt: Date.now() });
+});
+
 api.use(authGuard);
 
 api.get("/me", (req: AuthedRequest, res) => {
@@ -151,25 +207,61 @@ api.get("/system", requirePermission("dashboard"), (_req, res) => {
 });
 
 api.post("/system/restart-xray", requirePermission("dashboard"), (req: AuthedRequest, res) => {
-  restartXray();
+  restartTunnelEngines();
   logActivity(req.admin!.username, "xray_restart", "");
   res.json({ ok: true });
 });
 
-api.get("/inbounds", (_req, res) => {
+api.get("/inbounds", requirePermission("inbounds"), (_req, res) => {
   res.json(listInbounds());
+});
+
+api.post("/inbounds", requirePermission("inbounds"), (req: AuthedRequest, res) => {
+  const body = z.object({
+    tag: z.string().trim().min(2).max(48),
+    protocol: z.enum(["vless", "vmess", "trojan"]),
+    transport: z.enum(["ws", "xhttp", "httpupgrade"]).optional().default("xhttp"),
+    expireDays: z.number().int().min(0).max(3650).optional(),
+    serverName: z.string().trim().min(1).max(253).regex(/^[A-Za-z0-9.-]+$/).optional(),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid inbound settings" }); return; }
+  try {
+    const inbound = createInbound(body.data);
+    logActivity(req.admin!.username, "inbound_create", `${inbound.tag} : ${inbound.port}`);
+    restartTunnelEngines();
+    res.json(inbound);
+  } catch (e) { res.status(400).json({ error: (e as Error).message }); }
+});
+
+api.delete("/inbounds/:id", requirePermission("inbounds"), (req: AuthedRequest, res) => {
+  try {
+    if (!deleteInbound(Number(req.params.id))) { res.status(404).json({ error: "not found" }); return; }
+    logActivity(req.admin!.username, "inbound_delete", `#${req.params.id}`);
+    restartTunnelEngines();
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: (e as Error).message }); }
 });
 
 api.patch("/inbounds/:id", requirePermission("inbounds"), async (req: AuthedRequest, res) => {
   const id = Number(req.params.id);
-  const body = z.object({ enabled: z.boolean() }).safeParse(req.body);
+  const body = z.object({
+    enabled: z.boolean().optional(),
+    expireDays: z.number().int().min(0).max(3650).optional(),
+  }).refine((v) => v.enabled !== undefined || v.expireDays !== undefined).safeParse(req.body);
   if (!body.success || !getInbound(id)) {
     res.status(400).json({ error: "invalid" });
     return;
   }
-  setInboundEnabled(id, body.data.enabled);
+  if (body.data.expireDays !== undefined) {
+    const inbound = renewInbound(id, body.data.expireDays);
+    logActivity(req.admin!.username, "inbound_renew", `#${id} ${body.data.expireDays} days`);
+    restartTunnelEngines();
+    res.json(inbound);
+    return;
+  }
+  setInboundEnabled(id, body.data.enabled!);
   logActivity(req.admin!.username, "inbound_toggle", `#${id} -> ${body.data.enabled}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -233,7 +325,7 @@ api.post("/users", requirePermission("users"), async (req: AuthedRequest, res) =
   try {
     const user = createUser({ ...body.data, createdBy: req.admin!.id });
     logActivity(req.admin!.username, "user_create", user.email);
-    restartXray();
+    restartTunnelEngines();
     res.json(user);
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
@@ -256,7 +348,7 @@ api.put("/users/:id", requirePermission("users"), async (req: AuthedRequest, res
     return;
   }
   logActivity(req.admin!.username, "user_update", user.email);
-  restartXray();
+  restartTunnelEngines();
   res.json(user);
 });
 
@@ -268,7 +360,7 @@ api.delete("/users/:id", requirePermission("users"), async (req: AuthedRequest, 
   const user = getUser(Number(req.params.id));
   deleteUser(Number(req.params.id));
   logActivity(req.admin!.username, "user_delete", user?.email || String(req.params.id));
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -284,7 +376,7 @@ api.post("/users/:id/toggle", requirePermission("users"), async (req: AuthedRequ
   }
   setUserEnabled(Number(req.params.id), body.data.enabled);
   logActivity(req.admin!.username, "user_toggle", `#${req.params.id} -> ${body.data.enabled}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -365,6 +457,74 @@ api.post("/settings/credentials", requirePermission("settings"), (req: AuthedReq
   // cookie for the admin who made the change so they stay signed in.
   setAuthCookie(res, signToken({ id: req.admin!.id }));
   logActivity(req.admin!.username, "credentials_change", "");
+  res.json({ ok: true });
+});
+
+api.get("/nodes", requirePermission("settings"), (_req, res) => {
+  db.prepare("UPDATE managed_nodes SET status = 'offline' WHERE enabled = 1 AND status = 'online' AND last_seen < ?").run(Date.now() - 90000);
+  const nodes = db.prepare("SELECT id, name, endpoint, inbound_ids, enabled, status, last_seen, agent_version, xray_version, platform, arch, config_hash, last_error, created_at, updated_at FROM managed_nodes ORDER BY id DESC").all() as Record<string, unknown>[];
+  res.json({ nodes: nodes.map((node) => ({ ...node, inbound_ids: JSON.parse(String(node.inbound_ids || "[]")) })) });
+});
+
+api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
+  const body = z.object({
+    name: z.string().trim().min(2).max(64),
+    endpoint: z.string().trim().url().max(255).optional(),
+    inboundIds: z.array(z.number().int().positive()).max(200).optional().default([]),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid node details" }); return; }
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan"]);
+  if (body.data.inboundIds.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
+    res.status(400).json({ error: "Remote nodes support only VLESS, VMess and Trojan." }); return;
+  }
+  if (body.data.endpoint) {
+    try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
+    catch { res.status(400).json({ error: "node endpoint must use HTTPS" }); return; }
+  }
+  const token = randomBytes(48).toString("base64url");
+  const now = Date.now();
+  const info = db.prepare("INSERT INTO managed_nodes (name, endpoint, token_hash, inbound_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(body.data.name, body.data.endpoint || "", nodeTokenHash(token), JSON.stringify(body.data.inboundIds), now, now);
+  logActivity(req.admin!.username, "node_create", body.data.name);
+  res.status(201).json({ id: Number(info.lastInsertRowid), name: body.data.name, endpoint: body.data.endpoint, token, installCommand: "Use the POMP NET node-agent files and set POMP_CONTROLLER_URL and POMP_NODE_TOKEN. The token is shown only once." });
+});
+
+api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
+  const body = z.object({
+    name: z.string().trim().min(2).max(64).optional(),
+    endpoint: z.string().trim().url().max(255).optional(),
+    inboundIds: z.array(z.number().int().positive()).max(200).optional(),
+    enabled: z.boolean().optional(),
+  }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid node update" }); return; }
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]);
+  if (body.data.inboundIds?.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
+    res.status(400).json({ error: "Remote nodes support VLESS, VMess, Trojan, WireGuard, SOCKS, HTTP, Hysteria2 and TUIC. Hysteria2/TUIC require sing-box on the node." }); return;
+  }
+  const current = db.prepare("SELECT * FROM managed_nodes WHERE id = ?").get(Number(req.params.id)) as { name: string; endpoint: string; inbound_ids: string; enabled: number } | undefined;
+  if (!current) { res.status(404).json({ error: "node not found" }); return; }
+  if (body.data.endpoint) {
+    try { const u = new URL(body.data.endpoint); if (u.protocol !== "https:" && u.hostname !== "localhost" && u.hostname !== "127.0.0.1") throw new Error("HTTPS required"); }
+    catch { res.status(400).json({ error: "node endpoint must use HTTPS" }); return; }
+  }
+  db.prepare("UPDATE managed_nodes SET name=?, endpoint=?, inbound_ids=?, enabled=?, status=CASE WHEN ?=0 THEN 'disabled' ELSE status END, updated_at=? WHERE id=?")
+    .run(body.data.name ?? current.name, body.data.endpoint ?? current.endpoint, JSON.stringify(body.data.inboundIds ?? JSON.parse(String(current.inbound_ids || "[]"))), body.data.enabled === undefined ? current.enabled : Number(body.data.enabled), body.data.enabled === undefined ? Number(current.enabled) : Number(body.data.enabled), Date.now(), Number(req.params.id));
+  logActivity(req.admin!.username, "node_update", String(req.params.id));
+  res.json({ ok: true });
+});
+
+api.post("/nodes/:id/rotate-token", requireOwner, (req: AuthedRequest, res) => {
+  const token = randomBytes(48).toString("base64url");
+  const result = db.prepare("UPDATE managed_nodes SET token_hash=?, status='pending', updated_at=? WHERE id=?").run(nodeTokenHash(token), Date.now(), Number(req.params.id));
+  if (!result.changes) { res.status(404).json({ error: "node not found" }); return; }
+  logActivity(req.admin!.username, "node_token_rotate", String(req.params.id));
+  res.json({ token });
+});
+
+api.delete("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
+  const result = db.prepare("DELETE FROM managed_nodes WHERE id=?").run(Number(req.params.id));
+  if (!result.changes) { res.status(404).json({ error: "node not found" }); return; }
+  logActivity(req.admin!.username, "node_delete", String(req.params.id));
   res.json({ ok: true });
 });
 
@@ -449,7 +609,7 @@ api.post("/backup/import", requirePermission("dashboard"), async (req: AuthedReq
       "backup_import",
       `${result.users} users, ${result.inbounds} inbounds`,
     );
-    restartXray();
+    restartTunnelEngines();
     res.json({ ok: true, ...result });
   } catch (e) {
     res.status(400).json({ error: (e as Error).message });
@@ -488,7 +648,7 @@ api.post("/routing", requirePermission("routing"), async (req: AuthedRequest, re
     body.data.label || "",
   );
   logActivity(req.admin!.username, "routing_add", body.data.label || body.data.domain);
-  restartXray();
+  restartTunnelEngines();
   res.json(rule);
 });
 
@@ -500,14 +660,14 @@ api.put("/routing/:id", requirePermission("routing"), async (req: AuthedRequest,
   }
   updateRoutingRule(Number(req.params.id), body.data.inboundIds);
   logActivity(req.admin!.username, "routing_update", `#${req.params.id}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
 api.delete("/routing/:id", requirePermission("routing"), async (req: AuthedRequest, res) => {
   deleteRoutingRule(Number(req.params.id));
   logActivity(req.admin!.username, "routing_delete", `#${req.params.id}`);
-  restartXray();
+  restartTunnelEngines();
   res.json({ ok: true });
 });
 
@@ -561,6 +721,99 @@ api.post("/bot/test", requirePermission("bot"), async (req: AuthedRequest, res) 
   }
   logActivity(req.admin!.username, "bot_test", "");
   res.json({ ok: true });
+});
+
+
+api.post("/users/:id/renew", requirePermission("users"), (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id <= 0 || !canAccessUser(req, id)) {
+    res.status(403).json({ error: "forbidden" }); return;
+  }
+  const body = z.object({ days: z.number().int().min(1).max(3650), note: z.string().max(500).optional() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid renewal" }); return; }
+  const user = getUser(id);
+  if (!user) { res.status(404).json({ error: "not found" }); return; }
+  const now = Date.now();
+  const previous = user.expire_at;
+  const base = previous && previous > now ? previous : now;
+  const next = base + body.data.days * 86_400_000;
+  db.prepare("UPDATE users SET expire_at = ?, enabled = 1 WHERE id = ?").run(next, id);
+  db.prepare("INSERT INTO renewal_history (user_id, days, previous_expire_at, new_expire_at, actor, note, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(id, body.data.days, previous, next, req.admin!.username, body.data.note || "", now);
+  logActivity(req.admin!.username, "user_renew", `#${id} +${body.data.days} days`);
+  restartTunnelEngines();
+  res.json({ ok: true, user: getUser(id), expireAt: next });
+});
+
+api.get("/users/:id/renewals", requirePermission("users"), (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  if (!canAccessUser(req, id)) { res.status(403).json({ error: "forbidden" }); return; }
+  res.json(db.prepare("SELECT id, days, previous_expire_at, new_expire_at, actor, note, created_at FROM renewal_history WHERE user_id = ? ORDER BY created_at DESC LIMIT 100").all(id));
+});
+
+api.get("/support/tickets", requirePermission("users"), (req: AuthedRequest, res) => {
+  const owner = req.admin!.role === "owner";
+  const tickets = db.prepare(`SELECT t.*, u.email AS user_email,
+    (SELECT COUNT(*) FROM support_messages m WHERE m.ticket_id=t.id) AS message_count
+    FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id
+    WHERE (? = 1 OR u.created_by = ?)
+    ORDER BY t.updated_at DESC LIMIT 300`).all(owner ? 1 : 0, req.admin!.id);
+  res.json({ tickets });
+});
+
+api.get("/support/tickets/:id", requirePermission("users"), (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  const owner = req.admin!.role === "owner";
+  const ticket = db.prepare(`SELECT t.*, u.email AS user_email FROM support_tickets t
+    LEFT JOIN users u ON u.id=t.user_id WHERE t.id=? AND (? = 1 OR u.created_by = ?)`)
+    .get(id, owner ? 1 : 0, req.admin!.id);
+  if (!ticket) { res.status(404).json({ error: "not found" }); return; }
+  const messages = db.prepare("SELECT * FROM support_messages WHERE ticket_id=? ORDER BY created_at ASC").all(id);
+  res.json({ ticket, messages });
+});
+
+api.post("/support/tickets/:id/reply", requirePermission("users"), async (req: AuthedRequest, res) => {
+  const id = Number(req.params.id);
+  const body = z.object({ message: z.string().trim().min(1).max(4000) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid message" }); return; }
+  const owner = req.admin!.role === "owner";
+  const ticket = db.prepare("SELECT t.* FROM support_tickets t LEFT JOIN users u ON u.id=t.user_id WHERE t.id=? AND (? = 1 OR u.created_by = ?)").get(id, owner ? 1 : 0, req.admin!.id) as { id:number; telegram_id:string; status:string } | undefined;
+  if (!ticket) { res.status(404).json({ error: "not found" }); return; }
+  const now = Date.now();
+  db.prepare("INSERT INTO support_messages (ticket_id, sender_type, sender_id, message, created_at) VALUES (?, 'admin', ?, ?, ?)")
+    .run(id, req.admin!.username, body.data.message, now);
+  db.prepare("UPDATE support_tickets SET status='pending', updated_at=? WHERE id=?").run(now, id);
+  let delivered = false;
+  if (ticket.telegram_id) delivered = await sendTelegramToChat(ticket.telegram_id, `🎧 <b>پاسخ پشتیبانی POMP NET · تیکت #${id}</b>\\n\\n${body.data.message}`);
+  logActivity(req.admin!.username, "support_reply", `ticket #${id}; telegram=${delivered}`);
+  res.json({ ok: true, telegramDelivered: delivered });
+});
+
+api.patch("/support/tickets/:id", requirePermission("users"), (req: AuthedRequest, res) => {
+  const body = z.object({ status: z.enum(["open", "pending", "closed"]), priority: z.enum(["low", "normal", "high"]).optional() }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "invalid ticket state" }); return; }
+  const owner = req.admin!.role === "owner";
+  const info = db.prepare("UPDATE support_tickets SET status=?, priority=COALESCE(?, priority), updated_at=? WHERE id=? AND (? = 1 OR EXISTS (SELECT 1 FROM users u WHERE u.id=support_tickets.user_id AND u.created_by=?))")
+    .run(body.data.status, body.data.priority || null, Date.now(), Number(req.params.id), owner ? 1 : 0, req.admin!.id);
+  if (Number(info.changes) === 0) { res.status(404).json({ error: "not found" }); return; }
+  res.json({ ok: true });
+});
+
+api.post("/bot/broadcast", requirePermission("bot"), async (req: AuthedRequest, res) => {
+  const body = z.object({ message: z.string().trim().min(1).max(4000) }).safeParse(req.body);
+  if (!body.success) { res.status(400).json({ error: "message required (max 4000)" }); return; }
+  try {
+    const result = await sendBroadcastToLinkedUsers(body.data.message);
+    logActivity(req.admin!.username, "telegram_broadcast", `sent=${result.sent}, failed=${result.failed}`);
+    res.json({ ok: true, ...result });
+  } catch (e) { res.status(400).json({ error: (e as Error).message }); }
+});
+
+api.get("/notifications/expiry-preview", requirePermission("users"), (_req, res) => {
+  const now = Date.now();
+  const rows = db.prepare("SELECT id, email, telegram_id, expire_at, enabled FROM users WHERE expire_at IS NOT NULL AND expire_at > ? AND expire_at <= ? ORDER BY expire_at ASC")
+    .all(now, now + 7 * 86_400_000);
+  res.json({ users: rows });
 });
 
 void db;

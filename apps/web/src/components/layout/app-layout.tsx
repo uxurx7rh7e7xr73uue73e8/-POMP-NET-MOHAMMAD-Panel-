@@ -14,6 +14,10 @@ import {
   Ban,
   Bot,
   Languages,
+  MessageSquare,
+  Server,
+  CalendarDays,
+  Clock3,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useI18n, LANGUAGES } from "@/lib/i18n";
@@ -27,7 +31,6 @@ import { Star, Tag, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RailLogo } from "@/components/rail-logo";
 import { AnimatedBackground } from "@/components/animated-background";
-import { BrandSignature } from "@/components/brand-signature";
 
 const GITHUB_URL = "https://github.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-";
 
@@ -36,6 +39,7 @@ import type { Permission } from "@/lib/types";
 const nav: {
   to: string;
   labelKey: "dashboard" | "users" | "inbounds" | "routing" | "activityLog" | "telegramBot" | "settings";
+  customLabel?: string;
   icon: typeof LayoutDashboard;
   end: boolean;
   perm: Permission;
@@ -43,6 +47,8 @@ const nav: {
 }[] = [
   { to: "/", labelKey: "dashboard", icon: LayoutDashboard, end: true, perm: "dashboard" },
   { to: "/users", labelKey: "users", icon: Users, end: false, perm: "users" },
+  { to: "/support", labelKey: "users", customLabel: "پشتیبانی و تیکت‌ها", icon: MessageSquare, end: false, perm: "users" },
+  { to: "/nodes", labelKey: "settings", customLabel: "مدیریت نودها", icon: Server, end: false, perm: "settings", ownerOnly: true },
   { to: "/inbounds", labelKey: "inbounds", icon: Router, end: false, perm: "inbounds" },
   { to: "/routing", labelKey: "routing", icon: Ban, end: false, perm: "routing" },
   { to: "/activity", labelKey: "activityLog", icon: ScrollText, end: false, perm: "activity" },
@@ -52,13 +58,14 @@ const nav: {
 
 function Brand() {
   return (
-    <div className="flex items-center gap-2">
-      <div className="grid h-9 w-9 place-items-center rounded-base border-2 border-border bg-main text-mtext neo-shadow">
-        <RailLogo className="h-5 w-5" />
+    <div className="pn-sidebar-brand flex flex-col items-center gap-2 text-center">
+      <div className="pn-sidebar-crown grid h-16 w-16 place-items-center rounded-full">
+        <RailLogo className="h-11 w-11" />
       </div>
       <div className="leading-tight">
-        <div className="font-heading text-[15px] tracking-tight">POMP NET MOHAMMAD</div>
-        <div className="text-[10px] uppercase tracking-widest text-text/60">QUANTUM NEXUS</div>
+        <div className="font-heading text-lg font-black tracking-tight">POMP NET</div>
+        <div className="font-heading text-lg font-black tracking-tight">MOHAMMAD</div>
+        <div className="mt-1 text-[10px] text-text/65">قدرت ساخت، آزادی انتخاب، کنترل در دستان تو</div>
       </div>
     </div>
   );
@@ -95,7 +102,7 @@ function NavItems({
           }
         >
           <item.icon className="h-5 w-5 transition-transform group-hover:scale-110" />
-          {t(item.labelKey as never)}
+          {item.customLabel || t(item.labelKey as never)}
         </NavLink>
         ))}
     </nav>
@@ -108,6 +115,7 @@ export function AppLayout() {
   const toast = useToast();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [tehranNow, setTehranNow] = React.useState(() => new Date());
   const location = useLocation();
   const menuRef = React.useRef<HTMLDivElement>(null);
 
@@ -119,6 +127,14 @@ export function AppLayout() {
     },
     [lang, setLang, toast, t],
   );
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setTehranNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const tehranDate = tehranNow.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });
+  const tehranTime = tehranNow.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   React.useEffect(() => {
     setMobileOpen(false);
@@ -207,6 +223,11 @@ export function AppLayout() {
             <div className="hidden items-center gap-2 lg:flex">
               <GitHubButton showStars={false} />
               <VersionBadge />
+            </div>
+            <div className="hidden items-center gap-3 rounded-xl border border-violet-400/25 bg-[#100d20]/80 px-3 py-2 text-xs text-violet-100 shadow-[0_0_22px_rgba(139,53,255,.08)] xl:flex">
+              <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-cyan-300" />{tehranDate}</span>
+              <span className="h-4 w-px bg-violet-300/20" />
+              <span className="flex items-center gap-1.5" dir="ltr"><Clock3 className="h-4 w-4 text-violet-300" />{tehranTime} <span className="text-[10px] text-text/45">UTC+03:30</span></span>
             </div>
             <div className="flex items-center gap-2">
               <a
@@ -315,7 +336,6 @@ export function AppLayout() {
 
           <main className="flex-1 p-4 lg:p-8">
             <div className="mx-auto max-w-7xl animate-fade-in">
-              <BrandSignature compact />
               <Outlet />
             </div>
           </main>
