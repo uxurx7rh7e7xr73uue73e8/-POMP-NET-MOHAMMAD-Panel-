@@ -1,6 +1,6 @@
 export interface NodeRecord {
   id: number; name: string; endpoint: string; inbound_ids: number[]; enabled: number;
-  status: "pending" | "online" | "error" | "disabled"; last_seen: number | null;
+  status: "pending" | "online" | "error" | "disabled" | "offline"; last_seen: number | null;
   agent_version: string; xray_version: string; platform: string; arch: string;
   config_hash: string; last_error: string; created_at: number; updated_at: number;
 }
