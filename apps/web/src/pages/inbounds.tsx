@@ -89,7 +89,7 @@ export default function InboundsPage() {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ tag, protocol, transport: protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays, serverName: serverName.trim() || undefined });
+    create.mutate({ tag, protocol, transport: protocol === "wireguard" || protocol === "hysteria2" || protocol === "tuic" ? "udp" : protocol === "socks" || protocol === "http" ? "tcp" : transport, expireDays, serverName: protocol === "hysteria2" || protocol === "tuic" ? serverName.trim() || undefined : undefined });
   };
 
   const isReachable = (ib: Inbound) => {
