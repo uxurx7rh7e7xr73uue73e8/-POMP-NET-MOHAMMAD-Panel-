@@ -101,7 +101,7 @@ export function singBoxCapabilities() {
   return {
     tlsConfigured: !!config.singBoxTlsCert && !!config.singBoxTlsKey && fs.existsSync(config.singBoxTlsCert) && fs.existsSync(config.singBoxTlsKey),
     binaryAvailable: !version.error && version.status === 0,
-    version: process.env.SING_BOX_VERSION || (version.status === 0 ? (version.stdout || version.stderr || "").trim().split("\\n")[0] : "unavailable"),
+    version: process.env.SING_BOX_VERSION || (version.status === 0 ? (version.stdout || version.stderr || "").trim().split(/\r?\n/)[0] : "unavailable"),
   };
 }
 
