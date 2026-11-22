@@ -488,7 +488,7 @@ api.post("/nodes", requireOwner, (req: AuthedRequest, res) => {
   const info = db.prepare("INSERT INTO managed_nodes (name, endpoint, token_hash, inbound_ids, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
     .run(body.data.name, body.data.endpoint, nodeTokenHash(token), JSON.stringify(body.data.inboundIds), now, now);
   logActivity(req.admin!.username, "node_create", body.data.name);
-  res.status(201).json({ id: Number(info.lastInsertRowid), name: body.data.name, endpoint: body.data.endpoint, token, installCommand: "Use the POMP NET node-agent files and set POMP_NODE_ID and POMP_NODE_TOKEN. The token is shown only once." });
+  res.status(201).json({ id: Number(info.lastInsertRowid), name: body.data.name, endpoint: body.data.endpoint, token, installCommand: "Use the POMP NET node-agent files and set POMP_CONTROLLER_URL and POMP_NODE_TOKEN. The token is shown only once." });
 });
 
 api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
