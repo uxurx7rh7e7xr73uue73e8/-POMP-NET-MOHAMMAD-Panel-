@@ -18,6 +18,10 @@ import type { Inbound } from "./types.js";
 import { isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 const xhttpProxy = httpProxy.createProxyServer({ ws: false, xfwd: true });
+
+function tunnelDebug(event: string, details: Record<string, unknown> = {}): void {
+  if (process.env.POMP_TUNNEL_DEBUG === "1") console.log("[POMP tunnel]", event, JSON.stringify(details));
+}
 xhttpProxy.on("error", () => {});
 
 const portToIp = new Map<number, { ip: string; ts: number }>();
@@ -91,6 +95,7 @@ function ipAllowed(inbound: Inbound, ip: string): boolean {
 
 function pipeToXray(req: IncomingMessage, clientSocket: Socket, head: Buffer, inbound: Inbound) {
   const realIp = clientIp(req);
+  tunnelDebug("matched inbound", { protocol: inbound.protocol, transport: inbound.transport, port: inbound.port, method: req.method });
   const upstream = net.connect(inbound.port, "127.0.0.1", () => {
     if (realIp && upstream.localPort) {
       portToIp.set(upstream.localPort, { ip: realIp, ts: Date.now() });
@@ -105,22 +110,26 @@ function pipeToXray(req: IncomingMessage, clientSocket: Socket, head: Buffer, in
     clientSocket.pipe(upstream);
     upstream.pipe(clientSocket);
   });
-  const kill = () => {
+  const kill = (source: string, error?: Error) => {
+    tunnelDebug("socket closed", { source, code: (error as NodeJS.ErrnoException | undefined)?.code || "" });
     upstream.destroy();
     clientSocket.destroy();
   };
-  upstream.on("error", kill);
-  clientSocket.on("error", kill);
+  upstream.on("error", (error) => kill("xray-upstream", error));
+  clientSocket.on("error", (error) => kill("client", error));
+  upstream.on("connect", () => tunnelDebug("connected to xray inbound", { port: inbound.port }));
 }
 
 export function attachTunnel(server: Server): void {
   server.on("upgrade", (req, socket, head) => {
     const inbound = matchInbound(req.url);
     if (!inbound) {
+      tunnelDebug("no inbound matched", { method: req.method, path: (req.url || "").split("?")[0] });
       socket.destroy();
       return;
     }
     if (!ipAllowed(inbound, clientIp(req))) {
+      tunnelDebug("ip limit rejected upgrade", { inboundId: inbound.id });
       socket.destroy();
       return;
     }
