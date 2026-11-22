@@ -140,16 +140,28 @@ function pipeToXray(req: IncomingMessage, clientSocket: Socket, head: Buffer, in
     clientSocket.pipe(upstream);
     upstream.pipe(clientSocket);
   });
-  upstream.once("close", release);
+  upstream.once("close", (hadError) => {
+    release();
+    tunnelDebug("xray upstream closed", { port: inbound.port, hadError, clientDestroyed: clientSocket.destroyed });
+    // A TCP close without a FIN must not leave the public WebSocket hanging.
+    if (!clientSocket.destroyed && !clientSocket.writableEnded) clientSocket.end();
+  });
+  clientSocket.once("close", (hadError) => {
+    release();
+    tunnelDebug("client tunnel closed", { port: inbound.port, hadError, upstreamDestroyed: upstream.destroyed });
+    if (!upstream.destroyed) upstream.destroy();
+  });
   const kill = (source: string, error?: Error) => {
     release();
-    tunnelDebug("socket closed", { source, code: (error as NodeJS.ErrnoException | undefined)?.code || "" });
+    tunnelDebug("socket error", { source, port: inbound.port, code: (error as NodeJS.ErrnoException | undefined)?.code || "", message: error?.message || "" });
     upstream.destroy();
     clientSocket.destroy();
   };
   upstream.on("error", (error) => kill("xray-upstream", error));
   clientSocket.on("error", (error) => kill("client", error));
   upstream.on("connect", () => tunnelDebug("connected to xray inbound", { port: inbound.port }));
+  upstream.on("end", () => tunnelDebug("xray upstream ended", { port: inbound.port }));
+  clientSocket.on("end", () => tunnelDebug("client ended tunnel", { port: inbound.port }));
 }
 
 export function attachTunnel(server: Server): void {
