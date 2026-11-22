@@ -8,7 +8,7 @@
  * branding, or the embedded authorship identifiers is prohibited.
  * Watermark: sr-icubaby-2025-9f4c1a7e
  */
-import { getSetting } from "./db.js";
+import { db, getSetting } from "./db.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
 import { isUserActive } from "./users.js";
 import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
@@ -200,6 +200,23 @@ function resolveAddress(host: string): string {
   return clean || host;
 }
 
+function activeNodeTargets(inboundId: number): { name: string; host: string }[] {
+  const rows = db.prepare("SELECT name, endpoint, inbound_ids, last_seen FROM managed_nodes WHERE enabled = 1 AND status = 'online' AND last_seen > ?")
+    .all(Date.now() - 90_000) as { name: string; endpoint: string; inbound_ids: string; last_seen: number }[];
+  return rows.flatMap((row) => {
+    if (!row.endpoint) return [];
+    let ids: number[] = [];
+    try { ids = JSON.parse(row.inbound_ids) as number[]; } catch { return []; }
+    if (ids.length > 0 && !ids.includes(inboundId)) return [];
+    try {
+      const url = new URL(row.endpoint);
+      return [{ name: row.name, host: url.hostname }];
+    } catch {
+      return [];
+    }
+  });
+}
+
 export function buildUserLinks(
   host: string,
   user: UserWithInbounds,
@@ -207,11 +224,22 @@ export function buildUserLinks(
 ): { tag: string; protocol: string; transport: string; link: string }[] {
   const address = resolveAddress(host);
   return inbounds
-    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id) && isPubliclyReachableInbound(ib))
-    .map((inbound) => ({
-      tag: inboundDisplayLabel(inbound, user, inbounds),
-      protocol: inbound.protocol,
-      transport: inbound.transport,
-      link: buildLink({ host, address, user, inbound, allInbounds: inbounds }),
-    }));
+    .filter((ib) => ib.enabled && (!ib.expires_at || ib.expires_at > Date.now()) && user.inbound_ids.includes(ib.id))
+    .flatMap((inbound) => {
+      if (isPubliclyReachableInbound(inbound)) {
+        return [{ tag: inboundDisplayLabel(inbound, user, inbounds), protocol: inbound.protocol, transport: inbound.transport,
+          link: buildLink({ host, address, user, inbound, allInbounds: inbounds }) }];
+      }
+      // Railway cannot expose UDP itself. A healthy, authenticated remote node
+      // can publish a WireGuard endpoint directly without opening UDP on Railway.
+      if (inbound.protocol === "wireguard") {
+        return activeNodeTargets(inbound.id).map((node) => ({
+          tag: `${inboundDisplayLabel(inbound, user, inbounds)} · ${node.name}`,
+          protocol: inbound.protocol,
+          transport: inbound.transport,
+          link: buildLink({ host, address: node.host, user, inbound, allInbounds: inbounds }),
+        }));
+      }
+      return [];
+    });
 }
