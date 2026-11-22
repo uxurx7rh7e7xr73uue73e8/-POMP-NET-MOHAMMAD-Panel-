@@ -86,7 +86,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          agent_pid=""
           cleanup() {
+            if [ -n "$agent_pid" ]; then kill "$agent_pid" >/dev/null 2>&1 || true; fi
             docker logs pompnet-ci || true
             docker rm -f pompnet-ci >/dev/null 2>&1 || true
           }
@@ -126,6 +128,21 @@ jobs:
           curl -fsS -H "Authorization: Bearer $node_token" \
             http://127.0.0.1:18080/api/node-agent/config > /tmp/pompnet-node-config.json
           node -e 'const x=require("/tmp/pompnet-node-config.json"); if (!x.configHash || !x.config || !x.config.inbounds.some(i=>i.tag==="api") || !x.config.inbounds.some(i=>i.tag!=="api" && i.listen==="0.0.0.0")) process.exit(1)'
+          cat > /tmp/pompnet-fake-xray <<'SH'
+          #!/bin/sh
+          if [ "$1" = "run" ] && [ "$2" = "-test" ]; then exit 0; fi
+          if [ "$1" = "run" ]; then sleep 120; exit 0; fi
+          exit 1
+          SH
+          chmod +x /tmp/pompnet-fake-xray
+          POMP_CONTROLLER_URL=http://127.0.0.1:18080 POMP_NODE_TOKEN="$node_token" XRAY_BIN=/tmp/pompnet-fake-xray POMP_NODE_DATA_DIR=/tmp/pompnet-node-agent node node-agent/agent.mjs > /tmp/pompnet-node-agent.log 2>&1 &
+          agent_pid=$!
+          sleep 3
+          curl -fsS -b /tmp/pompnet-cookies.txt http://127.0.0.1:18080/api/nodes > /tmp/pompnet-agent-nodes.json
+          node -e 'const n=require("/tmp/pompnet-agent-nodes.json").nodes[0]; if(n.agent_version!=="1.0.0" || n.status!=="online" || !n.config_hash) process.exit(1)'
+          kill "$agent_pid" >/dev/null 2>&1 || true
+          wait "$agent_pid" || true
+          agent_pid=""
           curl -fsS -b /tmp/pompnet-cookies.txt -H "Content-Type: application/json" \
             -d '{"tag":"CI-HYSTERIA2","protocol":"hysteria2","serverName":"ci.example.com"}' \
             http://127.0.0.1:18080/api/inbounds > /tmp/pompnet-hy2.json
