@@ -26,6 +26,9 @@ POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
 XRAY_BIN=/usr/local/bin/xray
 XRAY_VERSION=installed-by-operator
+# Required only when assigning VLESS, VMess or Trojan inbounds:
+POMP_NODE_TLS_CERT_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/fullchain.pem
+POMP_NODE_TLS_KEY_FILE=/etc/letsencrypt/live/YOUR-NODE-DOMAIN/privkey.pem
 ```
 
 3. Install `pompnet-node.service` as `/etc/systemd/system/pompnet-node.service`.
@@ -37,7 +40,7 @@ The agent fetches the node-scoped Xray config over HTTPS, applies the node-local
 ## Security and limitations
 
 - Keep the token private. It grants access to node configuration and heartbeat reporting.
-- The agent currently applies the controller's enabled inbounds to this node; use inbound assignment in the node registry to scope the config. An empty assignment means all enabled WireGuard inbounds.
+- The agent applies only the inbounds assigned in the node registry. An empty legacy assignment means all supported Xray inbounds; new UI registrations select WireGuard by default. VLESS/VMess/Trojan require the node certificate and key paths above.
 - Node status is based on authenticated heartbeat. It does not prove a client has successfully connected.
 - Do not expose the Xray API port publicly.
 - Configure firewall rules on the node for the assigned TCP/UDP listener ports.
