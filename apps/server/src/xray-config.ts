@@ -13,7 +13,6 @@ import { listEnabledInbounds } from "./inbounds.js";
 import { listUsers, isUserActive } from "./users.js";
 import { listRoutingRules } from "./routing.js";
 import type { Inbound, UserWithInbounds } from "./types.js";
-import { ensureWireGuardPeer, ensureWireGuardServerKeys } from "./wireguard.js";
 import { isPubliclyReachableInbound } from "./railway-capabilities.js";
 
 function streamSettings(inbound: Inbound) {
