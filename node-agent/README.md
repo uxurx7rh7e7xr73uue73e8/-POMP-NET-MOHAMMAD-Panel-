@@ -12,6 +12,10 @@ This directory contains the real remote-node worker used by the panel's managed_
 
 ## Install
 
+On Ubuntu/Debian, after installing Node.js 22+ and Xray-core, copy this directory to the node and run `sudo bash install.sh`. The installer asks for the panel HTTPS URL, one-time node token and Xray binary path, then installs the agent and systemd service.
+
+Manual installation is also supported:
+
 1. Copy `agent.mjs` to `/opt/pompnet-node/agent.mjs`.
 2. Create `/etc/pompnet-node.env` with mode 0600:
 
