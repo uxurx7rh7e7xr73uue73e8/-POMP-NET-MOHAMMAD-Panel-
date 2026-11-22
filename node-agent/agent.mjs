@@ -123,6 +123,7 @@ async function startSingBox(source) {
   await stopSingBox();
   const proc = spawn(singBoxBin, ["run", "-c", singBoxConfigFile], { cwd: dataDir, stdio: "inherit" });
   singBoxChild = proc;
+  proc.on("error", error => { if (singBoxChild === proc) singBoxChild = null; console.error("[POMP NODE] sing-box spawn error:", error.message); });
   proc.on("exit", (code, signal) => {
     if (singBoxChild === proc) singBoxChild = null;
     if (!stopping) console.error(`[POMP NODE] sing-box exited (code=${code}, signal=${signal}). Next poll will retry.`);
@@ -150,6 +151,7 @@ async function startXray() {
   if (test.status !== 0) throw new Error(`Xray config validation failed: ${(test.stderr || test.stdout || "unknown error").slice(0, 700)}`);
   const proc = spawn(xrayBin, ["run", "-config", configFile], { stdio: "inherit", detached: false });
   child = proc;
+  proc.on("error", error => { if (child === proc) child = null; console.error("[POMP NODE] Xray spawn error:", error.message); });
   proc.on("exit", (code, signal) => {
     if (child === proc) child = null;
     if (!stopping) console.error(`[POMP NODE] Xray exited (code=${code}, signal=${signal}). Next poll will retry.`);
@@ -216,6 +218,7 @@ async function applyConfig() {
       try { await startXray(); }
       catch (rollbackError) { console.error("[POMP NODE] Previous Xray config could not be restarted:", rollbackError); }
     }
+    currentHash = "";
     throw error;
   }
   return hash;
