@@ -57,7 +57,7 @@ POMP_NODE_TOKEN=${newToken}
 POMP_NODE_POLL_MS=30000
 POMP_NODE_DATA_DIR=/var/lib/pompnet-node
 XRAY_BIN=/usr/local/bin/xray`;
-  const installCommand = `mkdir -p /opt/pompnet-node-src && cd /opt/pompnet-node-src && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/agent.mjs -o agent.mjs && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/pompnet-node.service -o pompnet-node.service && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/install.sh -o install.sh && sudo bash install.sh`;
+  const installCommand = `mkdir -p /tmp/pompnet-node-src && cd /tmp/pompnet-node-src && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/agent.mjs -o agent.mjs && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/pompnet-node.service -o pompnet-node.service && curl -fsSL https://raw.githubusercontent.com/uxurx7rh7e7xr73uue73e8/-POMP-NET-MOHAMMAD-Panel-/pompnet-quantum-redesign/node-agent/install.sh -o install.sh && sudo bash install.sh`;
 
   return <div className="space-y-6" dir="rtl">
     <div className="flex flex-wrap items-center justify-between gap-3">
