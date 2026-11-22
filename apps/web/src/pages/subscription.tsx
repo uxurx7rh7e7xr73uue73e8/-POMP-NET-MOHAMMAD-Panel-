@@ -109,7 +109,7 @@ export default function SubscriptionPage() {
   const { t } = useI18n();
   const { data, isLoading, isError } = useSubData(token);
   const [qrConfig, setQrConfig] = React.useState<SubLink | null>(null);
-  const [subQrOpen, setSubQrOpen] = React.useState(false);
+  const [subQrOpen, setSubQrOpen] = React.useState(false);\n  const [now, setNow] = React.useState(() => new Date());\n  React.useEffect(() => {\n    const timer = window.setInterval(() => setNow(new Date()), 1000);\n    return () => window.clearInterval(timer);\n  }, []);\n  const tehranDate = now.toLocaleDateString("fa-IR-u-ca-persian", { timeZone: "Asia/Tehran", weekday: "long", day: "numeric", month: "long" });\n  const tehranTime = now.toLocaleTimeString("fa-IR", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
   const subUrl = `${window.location.origin}/sub/${token}`;
 
