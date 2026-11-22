@@ -225,7 +225,23 @@ jobs:
           if [ "$ready" -ne 1 ]; then cat /tmp/pompnet-railway-health.json 2>/dev/null || true; exit 1; fi
           curl -fsS -H "Content-Type: application/json" \
             -d '{"username":"ci-owner","password":"TempPass123!"}' \
-            http://127.0.0.1:18081/api/setup >/dev/null
+            http://127.0.0.1:18081/api/setup > /tmp/pompnet-railway-setup.json
+          owner_token=$(node -e 'process.stdout.write(require("/tmp/pompnet-railway-setup.json").token)')
+          curl -fsS -H "Authorization: Bearer $owner_token" http://127.0.0.1:18081/api/inbounds > /tmp/pompnet-railway-inbounds.json
+          wg_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-railway-inbounds.json").find(i=>i.protocol==="wireguard").id))')
+          curl -fsS -H "Authorization: Bearer $owner_token" -H "Content-Type: application/json" \
+            -d "{\"name\":\"ci-wireguard-node\",\"endpoint\":\"https://wg-node.example.com\",\"inboundIds\":[${wg_id}]}" \
+            http://127.0.0.1:18081/api/nodes > /tmp/pompnet-railway-node.json
+          node_token=$(node -e 'process.stdout.write(require("/tmp/pompnet-railway-node.json").token)')
+          curl -fsS -H "Authorization: Bearer $node_token" -H "Content-Type: application/json" \
+            -d '{"agentVersion":"ci-test","xrayVersion":"ci-xray","platform":"linux","arch":"x64","configHash":"ci-config"}' \
+            http://127.0.0.1:18081/api/node-agent/heartbeat >/dev/null
+          curl -fsS -H "Authorization: Bearer $node_token" http://127.0.0.1:18081/api/node-agent/config > /tmp/pompnet-railway-node-config.json
+          node -e 'const x=require("/tmp/pompnet-railway-node-config.json"); if (!x.config.inbounds.some(i=>i.protocol==="wireguard" && i.listen==="0.0.0.0")) process.exit(1)'
+          curl -fsS -H "Authorization: Bearer $owner_token" http://127.0.0.1:18081/api/users > /tmp/pompnet-railway-users.json
+          user_id=$(node -e 'process.stdout.write(String(require("/tmp/pompnet-railway-users.json").users.find(u=>u.email==="sample-user").id))')
+          curl -fsS -H "Authorization: Bearer $owner_token" -X PUT -H "Content-Type: application/json" \
+            -d "{\"inboundIds\":[${wg_id}]}" "http://127.0.0.1:18081/api/users/$user_id" >/dev/null
           token=$(docker exec pompnet-railway-ci node --input-type=module -e '
             import { DatabaseSync } from "node:sqlite";
             const db = new DatabaseSync("/data/siderail.db");
@@ -237,7 +253,7 @@ jobs:
           curl -fsS "http://127.0.0.1:18081/sub/$token?raw=1" | base64 -d > /tmp/pompnet-railway-sub.txt
           grep -q "^vless://" /tmp/pompnet-railway-sub.txt
           grep -q "^socks://.*@ci.proxy.rlwy.net:12345" /tmp/pompnet-railway-sub.txt
-          ! grep -q "^wireguard://" /tmp/pompnet-railway-sub.txt
+          grep -q "^wireguard://.*@wg-node.example.com:" /tmp/pompnet-railway-sub.txt
           ! grep -q "^http://" /tmp/pompnet-railway-sub.txt
           curl -fsS http://127.0.0.1:18081/api/capabilities | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const x=JSON.parse(s);if(!x.railway||!x.tcpProxy.configured||x.wireguardPublicUdp)process.exit(1)})'
           echo "Railway-mode Xray, subscription filtering and mapped SOCKS5 endpoint passed."
