@@ -51,7 +51,11 @@ export function AuthShell({
         <div className="absolute bottom-[-10%] left-1/3 h-80 w-80 rounded-full bg-blue-500/20 blur-[110px] animate-[drift3_36s_ease-in-out_infinite]" />
       </div>
 
-      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-5 p-4 sm:p-6 lg:p-8">
+      <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col justify-center gap-4 p-4 sm:p-6 lg:p-8">
+        <div className="pn-auth-topbar flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-400/25 bg-[#0d0a19]/90 px-4 py-3 shadow-[0_0_28px_rgba(139,53,255,.12)]">
+          <div className="flex items-center gap-2 text-sm font-bold text-white"><span className="grid h-9 w-9 place-items-center rounded-full border border-violet-400/40 bg-violet-500/15 text-violet-200"><RailLogo className="h-6 w-6" /></span><span>POMP NET MOHAMMAD <small className="block text-[10px] font-normal tracking-[.18em] text-violet-300">SELFVERSE</small></span></div>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-white/75"><span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-cyan-300"/>{tehranDate}</span><span className="hidden h-4 w-px bg-white/15 sm:block"/><span className="flex items-center gap-1.5" dir="ltr"><Clock3 className="h-4 w-4 text-violet-300"/>{tehranTime}<span className="text-[10px] text-white/40">UTC+03:30</span></span><span className="hidden items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-emerald-300 sm:flex"><ShieldCheck className="h-3.5 w-3.5"/>ورود با احراز هویت واقعی</span></div>
+        </div>
         <div className="pn-auth-frame grid w-full overflow-hidden rounded-[28px] border border-white/10 shadow-[0_30px_100px_rgba(0,0,0,.55)] lg:grid-cols-[1.05fr_1fr]">
           {/* Brand / hero panel */}
           <div className="pn-auth-hero relative hidden min-h-[620px] flex-col justify-between overflow-hidden p-10 text-white lg:flex">
@@ -69,7 +73,8 @@ export function AuthShell({
             </div>
 
             <div className="relative space-y-5">
-              <div className="mb-3 h-px w-36 bg-gradient-to-l from-[#168cff] via-[#8b35ff] to-transparent shadow-[0_0_12px_rgba(139,53,255,.7)]" />\n              <h2 className="max-w-[16ch] font-heading text-4xl leading-[1.2] xl:text-5xl">{heading}</h2>
+              <div className="mb-3 h-px w-36 bg-gradient-to-l from-[#168cff] via-[#8b35ff] to-transparent shadow-[0_0_12px_rgba(139,53,255,.7)]" />
+              <h2 className="max-w-[16ch] font-heading text-4xl leading-[1.2] xl:text-5xl">{heading}</h2>
               <p className="max-w-[34ch] font-base text-base leading-8 text-white/70">{sub}</p>
               {highlights && (
                 <ul className="space-y-3 pt-3">
