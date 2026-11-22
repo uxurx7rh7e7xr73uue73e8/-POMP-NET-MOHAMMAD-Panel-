@@ -244,3 +244,110 @@ main input:focus, main textarea:focus, main select:focus {
   .pn-metric { border-radius:16px!important; }
   main { padding:12px !important; }
 }
+
+
+/* POMP NET MOHAMMAD — unified SideRail-derived control-room redesign.
+   Visual-only overrides: keep existing React routes, API calls, forms and state intact. */
+:root {
+  --pn-bg:#070610;
+  --pn-panel:#100d20;
+  --pn-panel-2:#15102a;
+  --pn-border:rgba(157,112,255,.24);
+  --pn-text:#f4f0ff;
+  --pn-muted:#a8a0bf;
+}
+body { color:var(--pn-text); }
+#root { min-height:100%; }
+aside {
+  width:272px !important;
+  padding:18px 14px !important;
+  border-right:1px solid var(--pn-border) !important;
+}
+aside > div:first-child {
+  padding:12px 10px 18px !important;
+  margin-bottom:8px;
+  border-bottom:1px solid rgba(157,112,255,.15);
+}
+aside nav { gap:7px !important; }
+aside nav a {
+  min-height:48px !important;
+  padding:11px 13px !important;
+  border:1px solid transparent !important;
+  border-radius:14px !important;
+  font-size:13px !important;
+  font-weight:600 !important;
+}
+aside nav a[aria-current="page"] {
+  background:linear-gradient(105deg,rgba(139,53,255,.25),rgba(22,140,255,.12)) !important;
+  border-color:rgba(163,119,255,.38) !important;
+  box-shadow:inset 3px 0 #9a5bff,0 8px 24px rgba(0,0,0,.2) !important;
+}
+header.sticky {
+  height:70px !important;
+  border-bottom:1px solid var(--pn-border) !important;
+  padding-inline:clamp(14px,2.2vw,32px) !important;
+  background:rgba(8,7,18,.96) !important;
+}
+main { padding:clamp(14px,2.2vw,32px) !important; }
+main > div.mx-auto { max-width:1540px !important; }
+main h1 { font-size:clamp(22px,2.2vw,30px) !important; font-weight:800 !important; letter-spacing:-.035em; }
+main h2 { font-weight:750 !important; letter-spacing:-.02em; }
+main [class*="rounded-base"][class*="border"],
+main [class*="rounded-xl"][class*="border"],
+main [class*="rounded-2xl"][class*="border"] {
+  border-color:var(--pn-border) !important;
+}
+main [class*="bg-card"], main [class*="bg-bw"] {
+  background-color:rgba(17,13,34,.96);
+}
+main button, main a, aside a { -webkit-tap-highlight-color:transparent; }
+main button:not(:disabled):hover { filter:brightness(1.08); }
+main input, main textarea, main select {
+  min-height:42px;
+  color:#f4f0ff !important;
+  background:#090817 !important;
+  border:1px solid rgba(157,112,255,.25) !important;
+  border-radius:12px !important;
+}
+main input::placeholder, main textarea::placeholder { color:#77708e !important; }
+main table { border-collapse:separate; border-spacing:0; width:100%; }
+main thead th {
+  color:#aaa1c5 !important;
+  font-size:11px !important;
+  font-weight:700 !important;
+  letter-spacing:.025em;
+  background:rgba(139,53,255,.055);
+}
+main tbody tr { transition:background .18s ease; }
+main tbody tr:hover { background:rgba(139,53,255,.055); }
+main td, main th { vertical-align:middle; }
+main button[class*="bg-main"], main button[class*="bg-gradient"] {
+  border-radius:12px !important;
+  font-weight:700;
+  box-shadow:0 7px 22px rgba(139,53,255,.18);
+}
+main [role="dialog"] {
+  border:1px solid rgba(157,112,255,.32) !important;
+  border-radius:22px !important;
+  background:linear-gradient(145deg,#17112b,#0c0b1b) !important;
+  box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(139,53,255,.10) !important;
+}
+.pn-panel-card, .pn-metric { backdrop-filter:blur(12px); }
+.pn-metric { min-height:132px; }
+.pn-panel-card { overflow:hidden; }
+.pn-quick-link { border-radius:13px; font-weight:650; }
+.pn-auth-frame, .pn-auth-form { border:1px solid var(--pn-border); }
+.pn-sub-page { min-height:100vh; }
+@media(max-width:1023px) {
+  aside { width:272px !important; }
+  header.sticky { height:62px !important; }
+}
+@media(max-width:640px) {
+  main { padding:12px !important; }
+  main h1 { font-size:22px !important; }
+  main [class*="overflow-x-auto"] { max-width:100%; }
+  .pn-metric { min-height:112px; }
+  .pn-metric-icon { width:46px; height:46px; border-radius:14px; }
+  .pn-hero { min-height:155px; padding:17px; }
+  aside { padding:14px !important; }
+}
