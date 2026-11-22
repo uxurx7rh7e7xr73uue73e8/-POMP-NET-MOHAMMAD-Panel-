@@ -41,7 +41,7 @@ const protocols = [
     name: "Trojan",
     outbound: {
       protocol: "trojan",
-      settings: { servers: [{ address: "127.0.0.1", port: 18080, password: decodeURIComponent(tr.password) }] },
+      settings: { servers: [{ address: "127.0.0.1", port: 18080, password: decodeURIComponent(tr.username) }] },
       streamSettings: { network: "ws", security: "none", wsSettings: { path: tr.searchParams.get("path"), headers: { Host: tr.searchParams.get("host") || "localhost" } } },
     },
   },
