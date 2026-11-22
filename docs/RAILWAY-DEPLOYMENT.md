@@ -17,9 +17,10 @@ Railway public networking supports HTTP/HTTPS and WebSockets, and offers one pub
 
 Therefore:
 
-- Native public WireGuard is **not supported** by this single-service Railway deployment. When Railway runtime environment variables are detected, the app now omits WireGuard from the generated Xray runtime config and client subscriptions. Existing inbound records and peer data are retained; they are not deleted. A UDP listener inside the container or a successful Docker smoke test does not make it reachable from a phone on the public internet.
+- The Railway service itself cannot expose public WireGuard UDP. It omits WireGuard from its local Xray runtime and local subscription links. Existing inbound records and peer data are retained. The owner can register a separate UDP-capable Linux node using the included authenticated node agent, assign WireGuard inbounds, and set that node's public endpoint. Once the node sends a fresh authenticated heartbeat, the subscription builder can publish WireGuard links using that node hostname and inbound UDP port. The remote agent in this release distributes WireGuard only; it does not yet distribute VLESS/VMess/Trojan or sing-box UDP protocols. Open the assigned UDP ports in both the node OS firewall and provider firewall.
 - SOCKS5 and raw HTTP proxy listeners are TCP services, not HTTP websites. Railway allows only one TCP Proxy per service instance, so only one of the panel's raw TCP inbounds can be published at a time. Existing SOCKS5/HTTP records are retained, but they are omitted from Xray runtime config and subscriptions unless the selected inbound's internal port matches the configured TCP Proxy mapping. After creating the TCP Proxy in Railway, set `RAILWAY_TCP_PROXY_INTERNAL_PORT` to its internal port, `PUBLIC_TCP_PROXY_HOST` to the generated proxy hostname, and `PUBLIC_TCP_PROXY_PORT` to its generated public port. The app then emits the correct public endpoint only for the matching inbound.
 - Railway private networking can carry UDP between Railway services, but it is not a public UDP endpoint for end-user VPN clients.
+- Hysteria2 and TUIC require public UDP and are not exposed by the Railway service. On a UDP-capable self-hosted Docker host, the bundled sing-box v1.14.4 engine serves these protocols when `SINGBOX_TLS_CERT_FILE` and `SINGBOX_TLS_KEY_FILE` point to valid certificate/key files and the inbound TLS server name matches the certificate. These are sing-box inbounds, not Xray inbounds.
 - Do not use Docker `EXPOSE` as proof of public reachability. It is image metadata only.
 
 Official references:
@@ -41,9 +42,11 @@ Official references:
 
 ## What CI proves (and does not prove)
 
-The CI workflow now has two separate paths:
-- A non-Railway Docker smoke test for the general Xray inbound implementation.
-- A Railway-mode smoke test that verifies WireGuard is omitted, only the selected TCP-proxy-mapped SOCKS/HTTP inbound is exported, and the generated proxy URI uses the configured public TCP endpoint.
+The CI workflow now checks:
+- Docker production build, TypeScript checks, Xray startup and API/auth smoke tests.
+- Authenticated remote-node token creation, heartbeat and node-scoped Xray config generation.
+- A self-hosted Docker sing-box test that validates Hysteria2/TUIC configs, UDP listeners and generated subscription URIs.
+- Railway-mode filtering plus WireGuard subscription routing through a simulated healthy authenticated remote node, and the selected TCP-proxy-mapped SOCKS endpoint.
 
 The Railway-mode test uses simulated Railway environment variables inside GitHub Actions. It verifies application logic, **not** the existence of a real Railway TCP Proxy or public internet reachability. A successful CI run still does not prove that a phone can connect. End-to-end tests from a real client against the deployed Railway domain and, if enabled, the generated TCP Proxy endpoint are required. Do not describe the CI UDP socket check as public UDP support.
 
@@ -60,4 +63,4 @@ The Railway-mode test uses simulated Railway environment variables inside GitHub
 - [ ] Export a backup and test restore in a non-production environment.
 - [ ] Do not advertise WireGuard as a public Railway feature. Advertise only the one SOCKS5 or HTTP inbound whose TCP Proxy mapping and real client connection have been verified.
 
-A green CI run is necessary, but it is not a substitute for a live Railway deployment and real-client connection tests.
+A green CI run is necessary, but it is not a substitute for installing the node agent on a real UDP-capable server, confirming its public firewall, deploying the Railway controller, and testing a real phone/client connection.
