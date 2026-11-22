@@ -1,3 +1,10 @@
+export interface NodeRecord {
+  id: number; name: string; endpoint: string; inbound_ids: number[]; enabled: number;
+  status: "pending" | "online" | "error" | "disabled"; last_seen: number | null;
+  agent_version: string; xray_version: string; platform: string; arch: string;
+  config_hash: string; last_error: string; created_at: number; updated_at: number;
+}
+
 export interface ApiError {
   error: string;
 }
@@ -124,6 +131,13 @@ export const api = {
   importBackup: (data: unknown) =>
     request("/api/backup/import", { method: "POST", body: JSON.stringify(data) }),
   restartXray: () => request("/api/system/restart-xray", { method: "POST" }),
+  nodes: () => request<{ nodes: NodeRecord[] }>("/api/nodes"),
+  createNode: (payload: { name: string; endpoint?: string; inboundIds?: number[] }) =>
+    request<{ id: number; name: string; endpoint: string; token: string; installCommand: string }>("/api/nodes", { method: "POST", body: JSON.stringify(payload) }),
+  updateNode: (id: number, payload: { name?: string; endpoint?: string; inboundIds?: number[]; enabled?: boolean }) =>
+    request<{ ok: boolean }>(`/api/nodes/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
+  rotateNodeToken: (id: number) => request<{ token: string }>(`/api/nodes/${id}/rotate-token`, { method: "POST" }),
+  deleteNode: (id: number) => request<{ ok: boolean }>(`/api/nodes/${id}`, { method: "DELETE" }),
   admins: () =>
     request<{ admins: import("./types").AdminInfo[]; permissions: string[] }>("/api/admins"),
   createAdmin: (payload: {
