@@ -509,7 +509,7 @@ api.put("/nodes/:id", requireOwner, (req: AuthedRequest, res) => {
     enabled: z.boolean().optional(),
   }).safeParse(req.body);
   if (!body.success) { res.status(400).json({ error: "invalid node update" }); return; }
-  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http"]);
+  const remoteNodeProtocols = new Set(["vless", "vmess", "trojan", "wireguard", "socks", "http", "hysteria2", "tuic"]);
   if (body.data.inboundIds?.some((id) => !remoteNodeProtocols.has(getInbound(id)?.protocol || ""))) {
     res.status(400).json({ error: "Remote nodes support VLESS, VMess, Trojan, WireGuard, SOCKS, HTTP, Hysteria2 and TUIC. Hysteria2/TUIC require sing-box on the node." }); return;
   }
