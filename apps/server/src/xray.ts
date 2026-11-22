@@ -19,7 +19,6 @@ import { config } from "./config.js";
 import { buildXrayConfig } from "./xray-config.js";
 import { db } from "./db.js";
 import { realIpForPort, beginTunnelMaintenance, endTunnelMaintenance } from "./tunnel.js";
-import { restartSingBox } from "./singbox.js";
 
 let proc: ChildProcess | null = null;
 let running = false;
@@ -109,7 +108,6 @@ export function xrayUptime(): number {
 }
 
 export async function startXray(): Promise<void> {
-  restartSingBox();
   const ok = await ensureBinary();
   if (!ok) {
     console.error("[POMP NET Xray] Core binary is unavailable.");
