@@ -52,7 +52,7 @@ app.set("trust proxy", true);
 app.get("/healthz", (_req, res) => {
   const xray = isRunning();
   const singBox = singBoxStatus();
-  const singBoxHealthy = singBox.inbounds === 0 || singBox.running;
+  const singBoxHealthy = singBox.inbounds === 0 || (singBox.running && !singBox.error);
   const ok = xray && singBoxHealthy;
   res.status(ok ? 200 : 503).json({ ok, xray, xrayVersion: xrayVersion(), singBox, service: "POMP NET MOHAMMAD — QUANTUM NEXUS", ...watermark() });
 });
